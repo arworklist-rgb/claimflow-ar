@@ -1,0 +1,63 @@
+import type { KnowledgeDoc } from "@/lib/types";
+
+const at = (iso: string) => `${iso}T15:00:00.000Z`;
+
+/** Sample library entries. Their files are generated into IndexedDB the first time the page opens. */
+export const SEED_KNOWLEDGE_DOCS: KnowledgeDoc[] = [
+  {
+    id: "kd-timely-filing",
+    title: "Payer timely filing limits",
+    category: "Payer Guidelines",
+    description: "Filing and appeal deadlines for the payers we bill most.",
+    fileName: "payer_timely_filing_limits.xlsx",
+    ext: "xlsx",
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    size: 0,
+    uploadedById: "u-pp",
+    uploadedByName: "Priya Patel",
+    uploadedAt: at("2026-10-12"),
+    seed: true,
+  },
+  {
+    id: "kd-followup-sop",
+    title: "Denial follow-up SOP",
+    category: "SOP",
+    description: "Step-by-step process for working a denied claim from first touch to resolution.",
+    fileName: "denial_followup_sop.docx",
+    ext: "docx",
+    mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    size: 0,
+    uploadedById: "u-sm",
+    uploadedByName: "Sanjay Mehta",
+    uploadedAt: at("2026-10-20"),
+    seed: true,
+  },
+  {
+    id: "kd-appeal-letter",
+    title: "Appeal letter checklist",
+    category: "Templates",
+    description: "One-page checklist of what every payer appeal must include.",
+    fileName: "appeal_letter_checklist.pdf",
+    ext: "pdf",
+    mimeType: "application/pdf",
+    size: 0,
+    uploadedById: "u-ak",
+    uploadedByName: "Ananya Kapoor",
+    uploadedAt: at("2026-10-27"),
+    seed: true,
+  },
+  {
+    id: "kd-onboarding",
+    title: "New hire onboarding tracker",
+    category: "Training",
+    description: "Week-by-week training plan for new AR specialists.",
+    fileName: "onboarding_tracker.xlsx",
+    ext: "xlsx",
+    mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    size: 0,
+    uploadedById: "u-rs",
+    uploadedByName: "Rachel Stein",
+    uploadedAt: at("2026-11-02"),
+    seed: true,
+  },
+];
