@@ -17,7 +17,7 @@ function RoleSidebarInner() {
   const { loading, roleKey, roleLabel, can } = useAuth();
   const [collapsed, setCollapsed] = useState(false);
 
-  if (pathname === "/login") return null;
+  if (pathname === "/" || pathname === "/login") return null;
 
   const visibleSections = SIDEBAR_SECTIONS.map((section) => ({
     ...section,
