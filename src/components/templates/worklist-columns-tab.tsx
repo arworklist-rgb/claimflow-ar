@@ -1,10 +1,19 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Lock } from "lucide-react";
+import { useMemo, useState } from "react";
+import { Lock, Plus, RotateCcw, Trash2 } from "lucide-react";
+import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { Switch } from "@/components/ui/switch";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
+import { useDemoStore } from "@/lib/store/demo-store";
+import { DEFAULT_WORKLIST_COLUMNS, fieldDef, uidShort } from "@/lib/templates";
 import type { WorklistColumn } from "@/lib/types";
+import { FieldSelect } from "./field-select";
+
+const MAX_COLUMNS = 20;
 
 const FIXED_COLUMNS = [
   { name: "Patient Name", note: "pinned left" },
@@ -14,32 +23,55 @@ const FIXED_COLUMNS = [
   { name: "Action", note: "edited in the table" },
   { name: "Submission Status", note: "First / Second / Third" },
   { name: "Date", note: "last time the team worked it" },
-  { name: "AR / Team", note: "who uploaded the claim" },
+  { name: "AR Level 1 & AR Level 2", note: "who uploaded / worked the claim" },
   { name: "Transaction By", note: "from the paid file" },
+  { name: "Date/Time Stamp", note: "record created timestamp" },
   { name: "Actions", note: "edit icon, pinned right" },
 ];
 
-interface WorklistColumnsTabProps {
-  columns: WorklistColumn[];
-  onChangeColumns: (cols: WorklistColumn[]) => void;
-  isAdmin: boolean;
-}
+export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
+  const saved = useDemoStore((s) => s.worklistColumns);
+  const softwares = useDemoStore((s) => s.softwares);
+  const customFields = useDemoStore((s) => s.customFields);
+  const setWorklistColumns = useDemoStore((s) => s.setWorklistColumns);
 
-export function WorklistColumnsTab({ columns, onChangeColumns, isAdmin }: WorklistColumnsTabProps) {
+  const [columns, setColumns] = useState<WorklistColumn[]>(saved);
+  const [newLabel, setNewLabel] = useState("");
+  const [newField, setNewField] = useState("");
+  const [addError, setAddError] = useState<string | null>(null);
   const readOnly = !isAdmin;
 
-  const move = (index: number, delta: -1 | 1) => {
-    const target = index + delta;
-    if (target < 0 || target >= columns.length) return;
-    const copy = [...columns];
-    const [item] = copy.splice(index, 1);
-    copy.splice(target, 0, item);
-    onChangeColumns(copy);
-  };
+  // Fields currently mapped in any software's Field Mapping cannot be deleted from Worklist Columns.
+  const mappedFields = useMemo(() => {
+    const map = new Map<string, string[]>();
+    for (const sw of softwares) {
+      for (const col of sw.columns) {
+        if (!col.field) continue;
+        const list = map.get(col.field) ?? [];
+        if (!list.includes(sw.name)) list.push(sw.name);
+        map.set(col.field, list);
+      }
+    }
+    return map;
+  }, [softwares]);
 
-  const toggleDisplay = (id: string, visible: boolean) => {
-    onChangeColumns(columns.map((c) => (c.id === id ? { ...c, visible } : c)));
-  };
+  const dirty = JSON.stringify(columns) !== JSON.stringify(saved);
+  const patch = (id: string, p: Partial<WorklistColumn>) =>
+    setColumns((list) => list.map((c) => (c.id === id ? { ...c, ...p } : c)));
+  const problems = columns.some((c) => !c.label.trim() || !fieldDef(c.field, customFields));
+
+  function handleAddColumn(e: React.FormEvent) {
+    e.preventDefault();
+    const label = newLabel.trim();
+    if (!label) return setAddError("Enter a column name.");
+    if (!newField) return setAddError("Choose a field to show.");
+    if (columns.length >= MAX_COLUMNS) return setAddError(`Maximum ${MAX_COLUMNS} columns allowed.`);
+    setColumns((list) => [...list, { id: uidShort("wc"), label, field: newField, visible: true }]);
+    setNewLabel("");
+    setNewField("");
+    setAddError(null);
+    toast.success(`Added "${label}" column`);
+  }
 
   return (
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
@@ -47,67 +79,150 @@ export function WorklistColumnsTab({ columns, onChangeColumns, isAdmin }: Workli
         <div className="space-y-1 border-b p-5">
           <h2 className="text-sm font-bold">Worklist columns</h2>
           <p className="text-[13px] text-muted-foreground">
-            Control which mapped fields are displayed on the Worklist and in what order (between Claim No and Denial Code).
+            Name each column and choose the template field it shows. They appear on the Worklist in this order, between Claim No and Denial Code.
           </p>
         </div>
 
+        {!readOnly && (
+          <form onSubmit={handleAddColumn} noValidate className="flex flex-wrap items-end gap-3 border-b bg-muted/30 p-5">
+            <div className="min-w-48 flex-1 space-y-1.5">
+              <Label htmlFor="wc-new-label">Column name</Label>
+              <Input
+                id="wc-new-label"
+                value={newLabel}
+                onChange={(e) => setNewLabel(e.target.value)}
+                placeholder="e.g. Facility"
+                aria-invalid={!!addError}
+                className="bg-card"
+              />
+            </div>
+            <div className="w-56 space-y-1.5">
+              <Label>Shows field</Label>
+              <FieldSelect
+                aria-label="New worklist column field"
+                value={newField}
+                onChange={setNewField}
+                customFields={customFields}
+                className="w-full bg-card"
+              />
+            </div>
+            <Button type="submit" disabled={columns.length >= MAX_COLUMNS}>
+              <Plus aria-hidden /> Add worklist column
+            </Button>
+            {addError && (
+              <p role="alert" className="w-full text-sm text-destructive">
+                {addError}
+              </p>
+            )}
+          </form>
+        )}
+
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[32rem] text-sm">
+          <table className="w-full min-w-[40rem] text-sm">
             <thead className="bg-muted/50 text-xs tracking-wide text-muted-foreground uppercase">
               <tr>
-                <th className="w-12 px-4 py-2 text-left font-semibold">#</th>
-                <th className="px-3 py-2 text-left font-semibold">Column name</th>
-                <th className="w-36 px-3 py-2 text-left font-semibold">Order &amp; Display</th>
+                <th className="w-10 px-4 py-2 text-left font-semibold">#</th>
+                <th className="px-2 py-2 text-left font-semibold">Column name</th>
+                <th className="w-56 px-2 py-2 text-left font-semibold">Shows field</th>
+                {!readOnly && <th className="w-16 px-3 py-2 text-right font-semibold">Delete</th>}
               </tr>
             </thead>
             <tbody>
-              {columns.map((c, i) => (
-                <tr key={c.id} className="border-t align-middle">
-                  <td className="px-4 py-2.5 text-muted-foreground tabular-nums">{i + 1}</td>
-                  <td className="px-3 py-2.5 font-medium text-foreground">{c.label}</td>
-                  <td className="px-3 py-2.5">
-                    <div className="flex items-center gap-1">
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Move ${c.label} up`}
-                        disabled={readOnly || i === 0}
-                        onClick={() => move(i, -1)}
-                      >
-                        <ArrowUp />
-                      </Button>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Move ${c.label} down`}
-                        disabled={readOnly || i === columns.length - 1}
-                        onClick={() => move(i, 1)}
-                      >
-                        <ArrowDown />
-                      </Button>
-                      <Switch
-                        aria-label={`Display ${c.label} on worklist`}
-                        checked={c.visible}
+              {columns.map((c, i) => {
+                const usedIn = mappedFields.get(c.field) ?? [];
+                const inUse = usedIn.length > 0;
+                return (
+                  <tr key={c.id} className="border-t align-middle">
+                    <td className="px-4 py-2 text-muted-foreground tabular-nums">{i + 1}</td>
+                    <td className="px-2 py-2">
+                      <Input
+                        aria-label={`Worklist column ${i + 1} name`}
+                        value={c.label}
+                        onChange={(e) => patch(c.id, { label: e.target.value })}
                         disabled={readOnly}
-                        onCheckedChange={(on) => toggleDisplay(c.id, on)}
-                        className="ml-1.5"
+                        className="h-9 bg-card"
                       />
-                    </div>
-                  </td>
-                </tr>
-              ))}
+                    </td>
+                    <td className="px-2 py-2">
+                      <FieldSelect
+                        aria-label={`Worklist column ${i + 1} shows`}
+                        value={c.field}
+                        onChange={(field) => patch(c.id, { field })}
+                        customFields={customFields}
+                        disabled={readOnly}
+                        className="h-9 w-full bg-card"
+                      />
+                    </td>
+                    {!readOnly && (
+                      <td className="px-3 py-2 text-right">
+                        <Tooltip>
+                          <TooltipTrigger asChild>
+                            <span className="inline-flex">
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={`Remove worklist column ${i + 1}`}
+                                disabled={inUse}
+                                className={inUse ? "opacity-40" : "hover:text-destructive"}
+                                onClick={() => setColumns((list) => list.filter((x) => x.id !== c.id))}
+                              >
+                                <Trash2 />
+                              </Button>
+                            </span>
+                          </TooltipTrigger>
+                          <TooltipContent>
+                            {inUse
+                              ? `Used in Field Mapping (${usedIn.join(", ")}) — cannot delete`
+                              : "Delete unused column"}
+                          </TooltipContent>
+                        </Tooltip>
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
               {columns.length === 0 && (
                 <tr>
-                  <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
-                    No columns mapped for this software yet.
+                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                    No data columns. Add one above.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
+
+        {!readOnly && (
+          <div className="flex flex-wrap items-center gap-2 border-t px-5 py-3">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={() => {
+                setColumns(DEFAULT_WORKLIST_COLUMNS);
+                toast.info("Reset to default columns");
+              }}
+            >
+              <RotateCcw aria-hidden /> Reset to defaults
+            </Button>
+            <div className="ml-auto flex gap-2">
+              <Button type="button" variant="outline" disabled={!dirty} onClick={() => setColumns(saved)}>
+                Discard
+              </Button>
+              <Button
+                type="button"
+                disabled={!dirty || problems}
+                onClick={() => {
+                  setWorklistColumns(columns);
+                  toast.success("Worklist columns saved");
+                }}
+              >
+                Save columns
+              </Button>
+            </div>
+          </div>
+        )}
       </Card>
 
       <Card className="gap-3 p-5">

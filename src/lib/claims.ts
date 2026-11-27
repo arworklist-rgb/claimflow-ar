@@ -15,10 +15,10 @@ export const isClosed = (c: Claim) => c.action === PAID_ACTION;
 /** Outstanding balance: the file's balance (or the charge), and nothing once the claim is Paid and closed. */
 export const balanceOf = (c: Claim) => (isClosed(c) ? 0 : (c.balance ?? c.billedAmount));
 
-/** The aging figure from the file, else whole days since the billed date (falling back to claim / service date). */
+/** The aging figure from the file, else whole days since Date of Service (falling back to billed / claim date). */
 export function ageInDays(c: Claim, now = Date.now()): number | null {
   if (c.aging !== undefined && Number.isFinite(c.aging)) return Math.max(0, Math.round(c.aging));
-  const t = Date.parse(c.billedDate || c.claimDate || c.dos);
+  const t = Date.parse(c.dos || c.billedDate || c.claimDate);
   if (Number.isNaN(t)) return null;
   return Math.max(0, Math.floor((now - t) / 86_400_000));
 }

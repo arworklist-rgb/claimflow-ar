@@ -5,6 +5,7 @@ import { useMemo, useState } from "react";
 import { ChevronDown, ClipboardList, Download, FileDown, Pencil, Plus, Upload } from "lucide-react";
 import { toast } from "sonner";
 import { useAuth } from "@/lib/auth/use-auth";
+import { ActionPopupDialog } from "./action-popup-dialog";
 import { AddClaimDialog } from "./add-claim-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
@@ -82,6 +83,7 @@ export function WorklistView() {
   const [denialFilter, setDenialFilter] = useState<string[]>([]);
   // The claim open in the edit popup. Rows no longer open anything on click; only the edit icon does.
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [actionPopup, setActionPopup] = useState<{ claim: Claim; action: ClaimAction } | null>(null);
 
   // A persisted practice id can outlive its practice.
   const practiceFilter = practices.some((p) => p.id === selectedPracticeId) ? selectedPracticeId : ALL_PRACTICES;
@@ -127,10 +129,7 @@ export function WorklistView() {
   const denialFilterLive = denialFilter.filter((code) => denialCodes.some((c) => c.code === code));
 
   const changeAction = (c: Claim, next: ClaimAction) => {
-    const today = new Date().toLocaleDateString("en-CA"); // yyyy-mm-dd in local time
-    if (updateClaim(c.id, { action: next, actionDate: today }, currentUser)) {
-      toast.success(`Claim ${c.claimId}: Action set to ${next}`);
-    }
+    setActionPopup({ claim: c, action: next });
   };
 
   // Patient name and claim no are pinned left (the widths below keep the second one's offset exact), then the data
@@ -283,17 +282,31 @@ export function WorklistView() {
       },
       {
         id: "ar",
-        header: "AR / Team",
+        header: "AR Level 1 / Level 2",
         sortValue: (c) => userName(c.ar1UserId) || "￿",
-        // Read-only: whoever uploads the claim is AR 1 (and AR 2 when a later upload updates it). Admins reassign in the popup.
+        // Read-only: whoever uploads the claim is AR Level 1 (and AR Level 2 when a later upload updates it). Admins reassign in the popup.
         cell: (c) => {
           const ar1 = users.find((u) => u.id === c.ar1UserId);
           const ar2 = users.find((u) => u.id === c.ar2UserId);
-          if (!ar1 && !ar2) return <span className="text-muted-foreground">Unassigned</span>;
+          const ar1Label = c.ar1Name || ar1?.name;
+          const ar2Label = c.ar2Name || ar2?.name;
+          if (!ar1Label && !ar2Label) return <span className="text-muted-foreground">Unassigned</span>;
           return (
             <div className="space-y-1">
-              {ar1 && <StaffChip user={ar1} className="max-w-44" />}
-              {ar2 && <StaffChip user={ar2} className="max-w-44 text-[13px] opacity-90" />}
+              {ar1Label && (
+                ar1 ? (
+                  <StaffChip user={{ ...ar1, name: ar1Label }} className="max-w-44" />
+                ) : (
+                  <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs font-medium">{ar1Label}</span>
+                )
+              )}
+              {ar2Label && (
+                ar2 ? (
+                  <StaffChip user={{ ...ar2, name: ar2Label }} className="max-w-44 text-[13px] opacity-90" />
+                ) : (
+                  <span className="inline-flex items-center rounded-md bg-muted px-2 py-0.5 text-xs opacity-90">{ar2Label}</span>
+                )
+              )}
             </div>
           );
         },
@@ -314,6 +327,20 @@ export function WorklistView() {
               onCommit={(text) => patchClaim(c.id, { transactionBy: text || undefined })}
             />
           );
+        },
+      },
+      {
+        id: "createdAt",
+        header: "Date/Time Stamp",
+        sortValue: (c) => c.createdAt ?? c.history?.at(-1)?.at ?? "",
+        className: cn(nowrap, "tabular-nums text-xs text-muted-foreground"),
+        cell: (c) => {
+          const ts = c.createdAt ?? c.history?.at(-1)?.at;
+          if (!ts) return dash;
+          const d = new Date(ts);
+          return Number.isNaN(d.getTime())
+            ? ts
+            : `${formatDateNumeric(ts)} ${d.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}`;
         },
       },
       {
@@ -517,6 +544,16 @@ export function WorklistView() {
           <ClaimEditDialog claim={editingClaim} onClose={() => setEditingId(null)} codes={denialCodes} users={users} now={now} customFields={customFields} />
         </>
       )}
+      <ActionPopupDialog
+        claim={actionPopup?.claim ?? null}
+        initialAction={actionPopup?.action ?? null}
+        onClose={() => setActionPopup(null)}
+        onSave={(claim, action, actionDate, comment) => {
+          if (updateClaim(claim.id, { action, actionDate, comment: comment || undefined }, currentUser)) {
+            toast.success(`Claim ${claim.claimId}: Action set to ${action}`);
+          }
+        }}
+      />
       <AddClaimDialog open={addingClaim} onOpenChange={setAddingClaim} />
     </div>
   );

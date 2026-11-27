@@ -467,7 +467,7 @@ export const useDemoStore = create<DemoState>()(
 
         // AR 1 / AR 2 come from whoever uploads, never from the file. The history entry is automatic
         // (`system`), so it doesn't count as the team working the claim.
-        const assignEvent = (claim: Claim, slot: "AR 1" | "AR 2"): ClaimEvent => ({
+        const assignEvent = (claim: Claim, slot: "AR Level 1" | "AR Level 2"): ClaimEvent => ({
           id: uid("ev"),
           at: log.uploadedAt,
           actionDate: day,
@@ -482,8 +482,16 @@ export const useDemoStore = create<DemoState>()(
           if (at === undefined) {
             index.set(keyOf(claim), list.length);
             createdIds.add(claim.id);
-            const fresh: Claim = { ...claim, rec: ++rec, ar1UserId: uploaderId, ar2UserId: undefined };
-            fresh.history = [assignEvent(fresh, "AR 1"), ...(fresh.history ?? [])];
+            const fresh: Claim = {
+              ...claim,
+              rec: ++rec,
+              ar1UserId: uploaderId,
+              ar1Name: uploaderName,
+              ar2UserId: undefined,
+              ar2Name: undefined,
+              createdAt: claim.createdAt ?? log.uploadedAt,
+            };
+            fresh.history = [assignEvent(fresh, "AR Level 1"), ...(fresh.history ?? [])];
             list.push(fresh);
             continue;
           }
@@ -515,11 +523,13 @@ export const useDemoStore = create<DemoState>()(
           if (!isRepeatInFile) {
             if (!existing.ar1UserId) {
               next.ar1UserId = uploaderId;
-              next.history = [assignEvent(next, "AR 1"), ...(existing.history ?? [])];
+              next.ar1Name = uploaderName;
+              next.history = [assignEvent(next, "AR Level 1"), ...(existing.history ?? [])];
               ar1Set++;
             } else if (existing.ar1UserId !== uploaderId && existing.ar2UserId !== uploaderId) {
               next.ar2UserId = uploaderId;
-              next.history = [assignEvent(next, "AR 2"), ...(existing.history ?? [])];
+              next.ar2Name = uploaderName;
+              next.history = [assignEvent(next, "AR Level 2"), ...(existing.history ?? [])];
               ar2Set++;
             }
             updated++;

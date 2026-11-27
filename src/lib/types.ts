@@ -128,9 +128,13 @@ export interface Claim {
   paidAmount?: number;
   /** yyyy-mm-dd of the payment (the file's Payment Date, else the upload / action date). */
   paidOn?: string;
-  /** Staff working the claim (User ids). */
+  /** Staff working the claim (User ids & First + Last name). */
   ar1UserId?: string;
+  ar1Name?: string;
   ar2UserId?: string;
+  ar2Name?: string;
+  /** ISO timestamp when the claim record was created/uploaded. */
+  createdAt?: string;
   uploadId?: string;
   /** The billing software whose template the claim was uploaded with. */
   softwareId?: string;

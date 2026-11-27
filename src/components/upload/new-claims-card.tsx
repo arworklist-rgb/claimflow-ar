@@ -36,7 +36,9 @@ export function NewClaimsCard() {
   const setSelectedPractice = useDemoStore((s) => s.setSelectedPractice);
   const denialCodes = useDemoStore((s) => s.denialCodes);
   const currentUser = useCurrentUser();
-  const uploader = currentUser.name;
+  const { userId: authUserId, fullName: authFullName, authenticated } = useAuth();
+  const uploader = authenticated ? authFullName : currentUser.name;
+  const uploaderId = authenticated ? authUserId : currentUser.id;
 
   const softwares = useDemoStore((s) => s.softwares);
   const addSoftware = useDemoStore((s) => s.addSoftware);
@@ -131,7 +133,7 @@ export function NewClaimsCard() {
       uploadedBy: uploader,
       uploadedAt: new Date().toISOString(),
       status: skipped > 0 || upload.parsed.missing.length > 0 ? "Completed with warnings" : "Completed",
-    }, currentUser.id);
+    }, uploaderId);
 
     const notes = [
       skipped > 0 && `${skipped} ${pluralize(skipped, "row")} without a Claim No skipped`,

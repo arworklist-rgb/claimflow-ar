@@ -287,20 +287,20 @@ function EditForm({ claim, codes, users, now, customFields, onDirtyChange, onCan
               />
             </Field>
 
-            <Field label="AR 1">
+            <Field label="AR Level 1">
               {isAdmin ? (
                 <div className="rounded-lg border bg-card px-1 py-0.5">
-                  <AssigneeCell label="AR 1" users={users} value={ar1} onChange={(id) => setAr1(id ?? undefined)} />
+                  <AssigneeCell label="AR Level 1" users={users} value={ar1} onChange={(id) => setAr1(id ?? undefined)} />
                 </div>
               ) : (
                 <ReadOnlyStaff user={userOf(claim.ar1UserId)} />
               )}
             </Field>
 
-            <Field label="AR 2">
+            <Field label="AR Level 2">
               {isAdmin ? (
                 <div className="rounded-lg border bg-card px-1 py-0.5">
-                  <AssigneeCell label="AR 2" users={users} value={ar2} onChange={(id) => setAr2(id ?? undefined)} />
+                  <AssigneeCell label="AR Level 2" users={users} value={ar2} onChange={(id) => setAr2(id ?? undefined)} />
                 </div>
               ) : (
                 <ReadOnlyStaff user={userOf(claim.ar2UserId)} />
@@ -308,7 +308,7 @@ function EditForm({ claim, codes, users, now, customFields, onDirtyChange, onCan
             </Field>
             {!isAdmin && (
               <p className="text-xs text-muted-foreground sm:col-span-2">
-                AR 1 and AR 2 are set automatically from who uploads the claim. Only admins can reassign them.
+                AR Level 1 and AR Level 2 are set automatically from who uploads the claim. Only admins can reassign them.
               </p>
             )}
 

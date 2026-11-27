@@ -1,9 +1,8 @@
 "use client";
 
 import { useState } from "react";
-import { Plus, Trash2 } from "lucide-react";
+import { Plus } from "lucide-react";
 import { toast } from "sonner";
-import { ConfirmDialog } from "@/components/shared/confirm-dialog";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
@@ -23,12 +22,10 @@ export function CustomFieldsTab({ isAdmin }: { isAdmin: boolean }) {
   const claims = useDemoStore((s) => s.claims);
   const addCustomField = useDemoStore((s) => s.addCustomField);
   const updateCustomField = useDemoStore((s) => s.updateCustomField);
-  const deleteCustomField = useDemoStore((s) => s.deleteCustomField);
 
   const [label, setLabel] = useState("");
   const [type, setType] = useState<FieldType>("text");
   const [error, setError] = useState<string | null>(null);
-  const [pendingDelete, setPendingDelete] = useState<CustomField | null>(null);
 
   const usage = (f: CustomField) => ({
     templates: softwares.reduce((n, s) => n + s.columns.filter((c) => c.field === f.key).length, 0),
@@ -40,7 +37,9 @@ export function CustomFieldsTab({ isAdmin }: { isAdmin: boolean }) {
     e.preventDefault();
     const name = label.trim();
     if (!name) return setError("Enter a field name.");
-    if (allFields(customFields).some((f) => f.label.toLowerCase() === name.toLowerCase())) return setError(`“${name}” is already a field.`);
+    if (allFields(customFields).some((f) => f.label.toLowerCase() === name.toLowerCase())) {
+      return setError(`“${name}” is already a field.`);
+    }
     addCustomField(name, type);
     setLabel("");
     setError(null);
@@ -51,7 +50,7 @@ export function CustomFieldsTab({ isAdmin }: { isAdmin: boolean }) {
     <div className="grid items-start gap-5 xl:grid-cols-[minmax(0,1fr)_18rem]">
       <Card className="gap-0 py-0">
         <div className="space-y-1 border-b p-5">
-          <h2 className="text-sm font-bold">Custom fields</h2>
+          <h2 className="text-sm font-bold">Template fields</h2>
           <p className="text-[13px] text-muted-foreground">
             Extra fields beyond the built-in ones. Once added, a field can be mapped from any software&apos;s template column and shown in a worklist column.
           </p>
@@ -61,14 +60,21 @@ export function CustomFieldsTab({ isAdmin }: { isAdmin: boolean }) {
           <form onSubmit={add} noValidate className="flex flex-wrap items-end gap-3 border-b bg-muted/30 p-5">
             <div className="min-w-48 flex-1 space-y-1.5">
               <Label htmlFor="cf-label">Field name</Label>
-              <Input id="cf-label" value={label} onChange={(e) => setLabel(e.target.value)} placeholder="e.g. Facility" aria-invalid={!!error} className="bg-card" />
+              <Input
+                id="cf-label"
+                value={label}
+                onChange={(e) => setLabel(e.target.value)}
+                placeholder="e.g. Facility"
+                aria-invalid={!!error}
+                className="bg-card"
+              />
               {error && (
                 <p role="alert" className="text-sm text-destructive">
                   {error}
                 </p>
               )}
             </div>
-            <div className="w-48 space-y-1.5">
+            <div className="w-56 space-y-1.5">
               <Label htmlFor="cf-type">Type</Label>
               <Select value={type} onValueChange={(v) => setType(v as FieldType)}>
                 <SelectTrigger id="cf-type" className="w-full bg-card">
@@ -89,47 +95,69 @@ export function CustomFieldsTab({ isAdmin }: { isAdmin: boolean }) {
           </form>
         )}
 
-        <ul aria-label="Custom fields" className="divide-y">
-          {customFields.map((f) => {
-            const u = usage(f);
-            return (
-              <li key={f.id} className="flex flex-wrap items-center gap-3 px-5 py-3">
-                <Input
-                  aria-label={`Name of ${f.label}`}
-                  defaultValue={f.label}
-                  disabled={!isAdmin}
-                  onBlur={(e) => {
-                    const next = e.target.value.trim();
-                    if (next && next !== f.label) updateCustomField(f.id, { label: next, type: f.type });
-                    else e.target.value = f.label;
-                  }}
-                  className="h-9 w-56 bg-card"
-                />
-                <Select value={f.type} onValueChange={(v) => updateCustomField(f.id, { label: f.label, type: v as FieldType })} disabled={!isAdmin}>
-                  <SelectTrigger aria-label={`Type of ${f.label}`} className="h-9 w-44 bg-card">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {TYPES.map((t) => (
-                      <SelectItem key={t} value={t}>
-                        {FIELD_TYPE_LABELS[t]}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <span className="mr-auto text-xs text-muted-foreground">
-                  {u.templates} template {pluralize(u.templates, "column")} · {u.columns} worklist {pluralize(u.columns, "column")} · {u.claims} {pluralize(u.claims, "claim")}
-                </span>
-                {isAdmin && (
-                  <Button type="button" variant="ghost" size="icon-sm" aria-label={`Delete ${f.label}`} className="hover:text-destructive" onClick={() => setPendingDelete(f)}>
-                    <Trash2 />
-                  </Button>
-                )}
-              </li>
-            );
-          })}
-          {customFields.length === 0 && <li className="px-5 py-10 text-center text-sm text-muted-foreground">No custom fields yet.</li>}
-        </ul>
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[40rem] text-sm">
+            <thead className="bg-muted/50 text-xs tracking-wide text-muted-foreground uppercase">
+              <tr>
+                <th className="w-10 px-4 py-2 text-left font-semibold">#</th>
+                <th className="px-2 py-2 text-left font-semibold">Field name</th>
+                <th className="w-56 px-2 py-2 text-left font-semibold">Type</th>
+                <th className="px-3 py-2 text-left font-semibold">Usage</th>
+              </tr>
+            </thead>
+            <tbody>
+              {customFields.map((f, i) => {
+                const u = usage(f);
+                return (
+                  <tr key={f.id} className="border-t align-middle">
+                    <td className="px-4 py-2 text-muted-foreground tabular-nums">{i + 1}</td>
+                    <td className="px-2 py-2">
+                      <Input
+                        aria-label={`Name of ${f.label}`}
+                        defaultValue={f.label}
+                        disabled={!isAdmin}
+                        onBlur={(e) => {
+                          const next = e.target.value.trim();
+                          if (next && next !== f.label) updateCustomField(f.id, { label: next, type: f.type });
+                          else e.target.value = f.label;
+                        }}
+                        className="h-9 bg-card"
+                      />
+                    </td>
+                    <td className="px-2 py-2">
+                      <Select
+                        value={f.type}
+                        onValueChange={(v) => updateCustomField(f.id, { label: f.label, type: v as FieldType })}
+                        disabled={!isAdmin}
+                      >
+                        <SelectTrigger aria-label={`Type of ${f.label}`} className="h-9 w-full bg-card">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {TYPES.map((t) => (
+                            <SelectItem key={t} value={t}>
+                              {FIELD_TYPE_LABELS[t]}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </td>
+                    <td className="px-3 py-2 text-xs text-muted-foreground">
+                      {u.templates} template {pluralize(u.templates, "column")} · {u.columns} worklist {pluralize(u.columns, "column")} · {u.claims} {pluralize(u.claims, "claim")}
+                    </td>
+                  </tr>
+                );
+              })}
+              {customFields.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="px-4 py-10 text-center text-sm text-muted-foreground">
+                    No custom fields yet.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
       <Card className="gap-3 p-5">
@@ -143,23 +171,6 @@ export function CustomFieldsTab({ isAdmin }: { isAdmin: boolean }) {
           ))}
         </ul>
       </Card>
-
-      <ConfirmDialog
-        open={!!pendingDelete}
-        onOpenChange={(o) => !o && setPendingDelete(null)}
-        title={`Delete ${pendingDelete?.label ?? "field"}?`}
-        description={
-          pendingDelete
-            ? `It is removed from ${usage(pendingDelete).templates} template ${pluralize(usage(pendingDelete).templates, "column")}, ${usage(pendingDelete).columns} worklist ${pluralize(usage(pendingDelete).columns, "column")} and ${usage(pendingDelete).claims} ${pluralize(usage(pendingDelete).claims, "claim")}.`
-            : ""
-        }
-        confirmLabel="Delete"
-        onConfirm={() => {
-          if (!pendingDelete) return;
-          deleteCustomField(pendingDelete.id);
-          toast.success(`${pendingDelete.label} deleted`);
-        }}
-      />
     </div>
   );
 }

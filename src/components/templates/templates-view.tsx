@@ -190,11 +190,7 @@ export function TemplatesView() {
           )}
         </TabsContent>
         <TabsContent value="worklist">
-          <WorklistColumnsTab
-            columns={currentWorklistCols}
-            onChangeColumns={setDraftWorklistCols}
-            isAdmin={isAdmin}
-          />
+          <WorklistColumnsTab isAdmin={isAdmin} />
         </TabsContent>
         <TabsContent value="fields">
           <CustomFieldsTab isAdmin={isAdmin} />

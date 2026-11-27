@@ -143,8 +143,8 @@ export const uidShort = (prefix: string) => `${prefix}-${Math.random().toString(
 
 /** Sensible starting spot for the data columns of the worklist (the client's "Column 1..12"). */
 export const DEFAULT_WORKLIST_COLUMNS: WorklistColumn[] = [
-  { id: "wc-account", label: "Account", field: "account", visible: false },
-  { id: "wc-acct-no", label: "Patient Acct No", field: "patientAcctNo", visible: false },
+  { id: "wc-account", label: "Account", field: "account", visible: true },
+  { id: "wc-acct-no", label: "Patient Acct No", field: "patientAcctNo", visible: true },
   { id: "wc-claim-date", label: "Claim Date", field: "claimDate", visible: true },
   { id: "wc-responsible", label: "Responsible", field: "responsible", visible: true },
   { id: "wc-provider", label: "Provider", field: "provider", visible: true },
