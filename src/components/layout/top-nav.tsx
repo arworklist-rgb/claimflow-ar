@@ -3,7 +3,7 @@
 import Link from "next/link";
 import { usePathname, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
-import { Bell, Menu, Moon, Sun } from "lucide-react";
+import { Bell, ChevronDown, Menu, Moon, Sun } from "lucide-react";
 import { useTheme } from "next-themes";
 import { Button } from "@/components/ui/button";
 import {
@@ -16,7 +16,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { useAuth } from "@/lib/auth/use-auth";
-import { SIDEBAR_SECTIONS, isNavActive } from "@/lib/nav";
+import { PROFILE_SETTINGS_ITEMS, TOP_NAV_SECTIONS, isNavActive } from "@/lib/nav";
 import { cn } from "@/lib/utils";
 import { Logo } from "./logo";
 import { PracticeSelect } from "./practice-select";
@@ -123,6 +123,11 @@ function NotificationsMenu() {
   );
 }
 
+const navBtn =
+  "flex items-center gap-1 rounded-lg px-2.5 py-2 text-[13px] font-medium whitespace-nowrap transition-colors outline-none focus-visible:ring-2 focus-visible:ring-white/40";
+const navActive = "bg-[#1d4ed8] text-white shadow-[0_2px_10px_rgba(29,78,216,0.5)]";
+const navIdle = "text-nav-foreground/85 hover:bg-white/10 hover:text-white";
+
 function TopNavInner() {
   const pathname = usePathname();
   const searchParams = useSearchParams();
@@ -142,7 +147,7 @@ function TopNavInner() {
     );
   }
 
-  const visibleSections = SIDEBAR_SECTIONS.map((section) => ({
+  const visibleSections = TOP_NAV_SECTIONS.map((section) => ({
     ...section,
     items: section.items.filter((item) => {
       if (item.roles && !item.roles.includes(roleKey)) return false;
@@ -151,20 +156,73 @@ function TopNavInner() {
     }),
   })).filter((s) => s.items.length > 0);
 
+  const visibleSettings = PROFILE_SETTINGS_ITEMS.filter((item) => {
+    if (item.roles && !item.roles.includes(roleKey)) return false;
+    if (item.permission && !can(item.permission)) return false;
+    return true;
+  });
+
+  const mobileSections =
+    visibleSettings.length > 0
+      ? [...visibleSections, { title: "Settings", items: visibleSettings }]
+      : visibleSections;
+
   return (
     <header className="sticky top-0 z-40 border-b border-nav-border bg-nav/95 text-nav-foreground shadow-[0_4px_18px_rgba(7,14,27,0.16)] backdrop-blur supports-[backdrop-filter]:bg-nav/90">
       <div className="flex h-16 items-center gap-2 px-3 sm:gap-3 sm:px-6">
         <Button
           variant="ghost"
           size="icon"
-          className="text-nav-foreground hover:bg-white/10 hover:text-white lg:hidden dark:hover:bg-white/10"
-          aria-label="Open navigation sidebar"
+          className="text-nav-foreground hover:bg-white/10 hover:text-white xl:hidden dark:hover:bg-white/10"
+          aria-label="Open navigation menu"
           onClick={() => setMobileOpen(true)}
         >
           <Menu />
         </Button>
 
         <Logo />
+
+        {/* Section Dropdowns (moved from left sidebar to top navbar) */}
+        <nav aria-label="Primary sections" className="ml-2 hidden items-center gap-1 xl:flex">
+          {visibleSections.map((section) => {
+            const anyActive = section.items.some((item) => isNavActive(item, pathname, search));
+            return (
+              <DropdownMenu key={section.title}>
+                <DropdownMenuTrigger asChild>
+                  <button
+                    type="button"
+                    className={cn(navBtn, anyActive ? navActive : navIdle, "data-[state=open]:bg-white/15")}
+                  >
+                    {section.title}
+                    <ChevronDown className="size-3.5 opacity-70" aria-hidden />
+                  </button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent align="start" className="w-56">
+                  <DropdownMenuLabel className="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
+                    {section.title}
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  {section.items.map((item) => {
+                    const Icon = item.icon;
+                    const active = isNavActive(item, pathname, search);
+                    return (
+                      <DropdownMenuItem key={item.href + item.label} asChild>
+                        <Link
+                          href={item.href}
+                          prefetch={false}
+                          className={cn("flex items-center gap-2.5", active && "bg-accent font-semibold text-accent-foreground")}
+                        >
+                          <Icon className="size-4" aria-hidden />
+                          {item.label}
+                        </Link>
+                      </DropdownMenuItem>
+                    );
+                  })}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            );
+          })}
+        </nav>
 
         <div className="ml-auto flex shrink-0 items-center gap-1 sm:gap-2">
           <div className="hidden md:block">
@@ -180,11 +238,11 @@ function TopNavInner() {
         <SheetContent side="left" className="w-72 gap-0 overflow-y-auto border-nav-border bg-nav p-0 text-nav-foreground [&>button]:text-white">
           <SheetHeader className="border-b border-nav-border p-4">
             <SheetTitle className="sr-only">Navigation</SheetTitle>
-            <SheetDescription className="sr-only">Role-based navigation sidebar</SheetDescription>
+            <SheetDescription className="sr-only">Role-based navigation menu</SheetDescription>
             <Logo />
           </SheetHeader>
           <nav aria-label="Mobile Role Navigation" className="flex flex-col gap-4 p-3">
-            {visibleSections.map((section) => (
+            {mobileSections.map((section) => (
               <div key={section.title} className="space-y-1">
                 <div className="px-3 text-[11px] font-semibold tracking-wider text-nav-foreground/50 uppercase">
                   {section.title}

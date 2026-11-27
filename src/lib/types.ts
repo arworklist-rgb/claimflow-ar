@@ -18,6 +18,8 @@ export interface Practice {
   code: string;
   name: string;
   npi?: string;
+  /** Billing software template tied to this practice. */
+  softwareId?: string;
   status: Status;
   userIds: string[];
   /** ISO date (yyyy-mm-dd or full ISO). */
@@ -229,6 +231,8 @@ export interface Software {
   name: string;
   status: Status;
   columns: SoftwareColumn[];
+  /** Per-software worklist display & order settings. */
+  worklistColumns?: WorklistColumn[];
 }
 
 /** One configurable worklist column: its label, the template field it shows, and whether it's displayed. */

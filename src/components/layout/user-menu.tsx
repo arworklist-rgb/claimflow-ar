@@ -19,6 +19,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useAuth } from "@/lib/auth/use-auth";
 import { clearKnowledgeFiles } from "@/lib/knowledge/file-store";
+import { PROFILE_SETTINGS_ITEMS } from "@/lib/nav";
 import { useDemoStore } from "@/lib/store/demo-store";
 import { useCurrentUser } from "@/lib/store/selectors";
 import { createSupabaseBrowserClient } from "@/lib/supabase/client";
@@ -54,6 +55,12 @@ export function UserMenu() {
     .slice(0, 2)
     .map((p) => p[0]?.toUpperCase() ?? "")
     .join("");
+
+  const visibleSettings = PROFILE_SETTINGS_ITEMS.filter((item) => {
+    if (item.roles && !item.roles.includes(auth.roleKey)) return false;
+    if (item.permission && !auth.can(item.permission)) return false;
+    return true;
+  });
 
   const active = users.filter((u) => u.status === "Active");
   const admins = active.filter((u) => u.role === "Admin");
@@ -100,10 +107,31 @@ export function UserMenu() {
               </span>
             </span>
           </DropdownMenuLabel>
-          <DropdownMenuSeparator />
+
+          {visibleSettings.length > 0 && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuLabel className="flex items-center gap-1.5 pb-1 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
+                <Settings className="size-3.5" aria-hidden /> Settings
+              </DropdownMenuLabel>
+              <DropdownMenuGroup>
+                {visibleSettings.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <DropdownMenuItem key={item.href} asChild>
+                      <Link href={item.href} prefetch={false}>
+                        <Icon className="size-4" aria-hidden /> {item.label}
+                      </Link>
+                    </DropdownMenuItem>
+                  );
+                })}
+              </DropdownMenuGroup>
+            </>
+          )}
 
           {!auth.authenticated && (
             <>
+              <DropdownMenuSeparator />
               <DropdownMenuLabel className="flex items-center gap-1.5 pb-0 text-[11px] font-bold tracking-wider text-muted-foreground uppercase">
                 <Eye className="size-3.5" aria-hidden /> View as (Demo)
               </DropdownMenuLabel>
@@ -135,11 +163,6 @@ export function UserMenu() {
             </>
           )}
 
-          <DropdownMenuItem asChild>
-            <Link href="/settings/notifications">
-              <Settings /> Notification Settings
-            </Link>
-          </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem onSelect={handleSignOut}>
             <LogOut /> Sign out

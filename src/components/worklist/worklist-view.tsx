@@ -65,7 +65,7 @@ export function WorklistView() {
   const updateClaim = useDemoStore((s) => s.updateClaim);
   const patchClaim = useDemoStore((s) => s.patchClaim);
   const setClaimDenialCodes = useDemoStore((s) => s.setClaimDenialCodes);
-  const worklistColumns = useDemoStore((s) => s.worklistColumns);
+  const globalWorklistColumns = useDemoStore((s) => s.worklistColumns);
   const customFields = useDemoStore((s) => s.customFields);
   const softwares = useDemoStore((s) => s.softwares);
   const currentUser = useCurrentUser().name;
@@ -85,10 +85,24 @@ export function WorklistView() {
 
   // A persisted practice id can outlive its practice.
   const practiceFilter = practices.some((p) => p.id === selectedPracticeId) ? selectedPracticeId : ALL_PRACTICES;
+  const selectedPractice = practices.find((p) => p.id === practiceFilter);
+  const tiedSoftware = selectedPractice?.softwareId
+    ? softwares.find((sw) => sw.id === selectedPractice.softwareId)
+    : undefined;
+  const worklistColumns = useMemo(
+    () => (tiedSoftware?.worklistColumns?.length ? tiedSoftware.worklistColumns : globalWorklistColumns),
+    [tiedSoftware, globalWorklistColumns],
+  );
 
   const scoped = useMemo(
-    () => claims.filter((c) => practiceFilter === ALL_PRACTICES || c.practiceId === practiceFilter),
-    [claims, practiceFilter],
+    () =>
+      claims.filter((c) => {
+        if (practiceFilter === ALL_PRACTICES) return true;
+        if (c.practiceId !== practiceFilter) return false;
+        if (tiedSoftware && c.softwareId && c.softwareId !== tiedSoftware.id) return false;
+        return true;
+      }),
+    [claims, practiceFilter, tiedSoftware],
   );
   const bucketScope = useMemo(() => scoped.filter((c) => !(hideClosed && isClosed(c))), [scoped, hideClosed]);
   const responsibleParties = useMemo(() => [...new Set(scoped.map((c) => c.responsible).filter(Boolean))].sort(), [scoped]);

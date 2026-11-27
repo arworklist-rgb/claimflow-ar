@@ -7,6 +7,7 @@ const createPracticeSchema = z.object({
   code: z.string().min(1).max(32),
   name: z.string().min(1).max(160),
   npi: z.string().max(20).optional(),
+  software_template_id: z.string().uuid().nullable().optional(),
   status: z.enum(["Active", "Inactive"]).optional().default("Active"),
 });
 

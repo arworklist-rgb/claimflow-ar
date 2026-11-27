@@ -7,6 +7,7 @@ const updatePracticeSchema = z.object({
   code: z.string().min(1).max(32).optional(),
   name: z.string().min(1).max(160).optional(),
   npi: z.string().max(20).nullable().optional(),
+  software_template_id: z.string().uuid().nullable().optional(),
   status: z.enum(["Active", "Inactive"]).optional(),
 });
 

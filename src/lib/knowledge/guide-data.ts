@@ -38,13 +38,13 @@ export const KNOWLEDGE_GUIDE_ARTICLES: GuideArticle[] = [
   {
     id: "nav-sidebar",
     category: "Getting Started & Navigation",
-    title: "How to Navigate Using the Role Sidebar & Slider",
-    summary: "All modules live in the collapsible left sidebar, dynamically filtered to your role's permissions.",
+    title: "How to Navigate Using Top Navbar Dropdowns & Profile Settings",
+    summary: "All modules live in the role-filtered top navbar dropdowns, while Settings live under your top-right Profile Menu.",
     steps: [
-      "Look at the top badge of the left sidebar to confirm your active role (e.g., Super Admin, Organization Admin, Manager, AR Agent 1, AR Agent 2, or Viewer).",
-      "Click the collapse/expand icon next to the role badge to slide the sidebar between full width and compact icon mode.",
+      "Top Navbar Dropdowns (Overview, Claims Operations, Team Management, Directories, Resources, Analytics, Platform) only show sections and features your role can access.",
+      "Click any section in the top navbar (e.g. Overview -> Dashboard, or Claims Operations -> Worklist) to jump directly to that screen.",
+      "Click your top-right Avatar / Profile Menu to open Settings (Users & Roles, Claim Status & Buckets, Notifications, Integrations, Company Profile, Audit Logs) or Sign out.",
       "On mobile or narrow screens, tap the hamburger menu icon in the top-left header to open the slide-out navigation drawer.",
-      "Sidebar sections include OVERVIEW, CLAIMS OPERATIONS, TEAM MANAGEMENT, DIRECTORIES, RESOURCES, ANALYTICS, ADMINISTRATION, and PLATFORM (Super Admin only).",
     ],
     tip: "If a menu item is missing, your current role does not have permission for that module. Ask an Organization Admin to review your role.",
     route: "/dashboard",

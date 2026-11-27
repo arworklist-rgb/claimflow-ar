@@ -262,6 +262,10 @@ export function NewClaimsCard() {
           onValueChange={(v) => {
             setPracticeId(v);
             setPracticeError(null);
+            const prac = practices.find((p) => p.id === v);
+            if (prac?.softwareId && activeSoftwares.some((sw) => sw.id === prac.softwareId)) {
+              setSoftwareChoice(prac.softwareId);
+            }
           }}
           disabled={submitting}
         >

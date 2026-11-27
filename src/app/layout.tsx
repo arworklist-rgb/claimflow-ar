@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { IBM_Plex_Mono, Plus_Jakarta_Sans } from "next/font/google";
 import { Providers } from "@/components/layout/providers";
-import { RoleSidebar } from "@/components/layout/role-sidebar";
 import { TopNav } from "@/components/layout/top-nav";
 import "./globals.css";
 
@@ -29,10 +28,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
       <body>
         <Providers>
           <TopNav />
-          <div className="flex min-h-[calc(100vh-4rem)]">
-            <RoleSidebar />
-            <main className="min-w-0 flex-1">{children}</main>
-          </div>
+          <main className="min-w-0 flex-1">{children}</main>
         </Providers>
       </body>
     </html>

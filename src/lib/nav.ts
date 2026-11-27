@@ -40,15 +40,16 @@ export interface SidebarSection {
   items: NavItem[];
 }
 
-export const SIDEBAR_SECTIONS: SidebarSection[] = [
+/** Top Navbar section dropdowns (everything except Settings, which lives in the Profile dropdown). */
+export const TOP_NAV_SECTIONS: SidebarSection[] = [
   {
-    title: "OVERVIEW",
+    title: "Overview",
     items: [
       { href: "/dashboard", label: "Dashboard", icon: Home },
     ],
   },
   {
-    title: "CLAIMS OPERATIONS",
+    title: "Claims Operations",
     items: [
       { href: "/upload-claims", label: "Upload Claims", icon: Upload, permission: "claims.import" },
       { href: "/worklist", label: "Worklist", icon: ListChecks, permission: "claims.read" },
@@ -57,7 +58,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     ],
   },
   {
-    title: "TEAM MANAGEMENT",
+    title: "Team Management",
     items: [
       { href: "/ar-management?tab=assignments", label: "AR Assignments", icon: UserCheck, permission: "claims.assign" },
       { href: "/ar-management?tab=followups", label: "Follow-up Tasks", icon: CalendarClock, permission: "claims.write" },
@@ -66,7 +67,7 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     ],
   },
   {
-    title: "DIRECTORIES",
+    title: "Directories",
     items: [
       { href: "/settings/practices", label: "Practices", icon: Building2, permission: "practices.manage" },
       { href: "/settings/payers", label: "Payers", icon: ShieldCheck, permission: "claims.read" },
@@ -75,34 +76,41 @@ export const SIDEBAR_SECTIONS: SidebarSection[] = [
     ],
   },
   {
-    title: "RESOURCES",
+    title: "Resources",
     items: [
       { href: "/knowledge-center", label: "Knowledge Center", icon: BookOpen, permission: "documents.read" },
-      { href: "/settings/upload-templates", label: "Upload Templates", icon: FileSpreadsheet, permission: "templates.manage" },
+      { href: "/settings/upload-templates", label: "Worklist Settings", icon: FileSpreadsheet, permission: "templates.manage" },
     ],
   },
   {
-    title: "ANALYTICS",
+    title: "Analytics",
     items: [
       { href: "/reporting", label: "Reporting", icon: ChartColumn, permission: "reports.view" },
     ],
   },
   {
-    title: "ADMINISTRATION",
-    items: [
-      { href: "/settings/users-roles", label: "Users & Roles", icon: Users, permission: "users.manage" },
-      { href: "/settings/claim-status-buckets", label: "Claim Status & Buckets", icon: Layers, permission: "templates.manage" },
-      { href: "/settings/notifications", label: "Notifications", icon: Bell },
-      { href: "/settings/integrations", label: "Integrations", icon: Plug, permission: "practices.manage" },
-      { href: "/settings/company-profile", label: "Company Profile", icon: Landmark, permission: "practices.manage" },
-      { href: "/audit-logs", label: "Audit Logs", icon: ShieldCheck, permission: "audit.read" },
-    ],
-  },
-  {
-    title: "PLATFORM",
+    title: "Platform",
     items: [
       { href: "/platform", label: "Super Admin Console", icon: ShieldCheck, roles: ["super_admin"] },
     ],
+  },
+];
+
+/** Settings items rendered inside the top-navbar Profile dropdown. */
+export const PROFILE_SETTINGS_ITEMS: NavItem[] = [
+  { href: "/settings/users-roles", label: "Users & Roles", icon: Users, permission: "users.manage" },
+  { href: "/settings/claim-status-buckets", label: "Claim Status & Buckets", icon: Layers, permission: "templates.manage" },
+  { href: "/settings/notifications", label: "Notifications", icon: Bell },
+  { href: "/settings/integrations", label: "Integrations", icon: Plug, permission: "practices.manage" },
+  { href: "/settings/company-profile", label: "Company Profile", icon: Landmark, permission: "practices.manage" },
+  { href: "/audit-logs", label: "Audit Logs", icon: ShieldCheck, permission: "audit.read" },
+];
+
+export const SIDEBAR_SECTIONS: SidebarSection[] = [
+  ...TOP_NAV_SECTIONS,
+  {
+    title: "Settings",
+    items: PROFILE_SETTINGS_ITEMS,
   },
 ];
 
@@ -130,7 +138,7 @@ export const SETTINGS_NAV: SettingsNavItem[] = [
   { slug: "denial-codes", label: "Denial Codes", icon: Tag, description: "Manage the denial codes your team selects on worklist claims." },
   { slug: "claim-status-buckets", label: "Claim Status & Buckets", icon: Layers, description: "Configure claim statuses and aging buckets for your worklists." },
   { slug: "payers", label: "Payers", icon: ShieldCheck, description: "Maintain the payer directory, contact details and filing limits." },
-  { slug: "upload-templates", label: "Upload Templates", icon: Upload, description: "Set up each billing software's upload template, the worklist columns and any custom fields." },
+  { slug: "upload-templates", label: "Worklist Settings", icon: Upload, description: "Set up each billing software's field mapping, worklist display columns, and template fields." },
   { slug: "notifications", label: "Notifications", icon: Bell, description: "Choose which alerts and digests your team receives." },
   { slug: "company-profile", label: "Company Profile", icon: Landmark, description: "Update your organization's name, address and billing details." },
   { slug: "integrations", label: "Integrations", icon: Plug, description: "Connect clearinghouses, PM systems and EHRs." },

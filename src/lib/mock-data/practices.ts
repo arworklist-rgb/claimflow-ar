@@ -6,6 +6,7 @@ export const SEED_PRACTICES: Practice[] = [
     code: "PR-1001",
     name: "Lakeshore Family Medicine",
     npi: "1457392086",
+    softwareId: "sw-standard",
     status: "Active",
     userIds: ["u-ak", "u-pp", "u-tn"],
     createdAt: "2026-04-10",

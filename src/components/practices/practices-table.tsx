@@ -24,7 +24,10 @@ interface PracticesTableProps {
 export function PracticesTable({ editing, onEditingChange }: PracticesTableProps) {
   const practices = useDemoStore((s) => s.practices);
   const users = useDemoStore((s) => s.users);
+  const softwares = useDemoStore((s) => s.softwares);
   const deletePractice = useDemoStore((s) => s.deletePractice);
+
+  const softwareById = useMemo(() => new Map(softwares.map((sw) => [sw.id, sw.name])), [softwares]);
 
   const [status, setStatus] = useState("all");
   const [userId, setUserId] = useState("all");
@@ -50,6 +53,12 @@ export function PracticesTable({ editing, onEditingChange }: PracticesTableProps
       ),
     },
     { id: "code", header: "Practice ID", sortValue: (p) => p.code, cell: (p) => <span className="font-mono text-[13px]">{p.code}</span> },
+    {
+      id: "software",
+      header: "Billing Software",
+      sortValue: (p) => (p.softwareId ? softwareById.get(p.softwareId) ?? "" : ""),
+      cell: (p) => <span className="text-sm font-medium">{p.softwareId ? softwareById.get(p.softwareId) ?? "Standard" : "Standard"}</span>,
+    },
     { id: "users", header: "Assigned Users", cell: (p) => <AssignedUsers users={usersOf(p)} /> },
     {
       id: "view",

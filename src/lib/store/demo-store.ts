@@ -63,6 +63,7 @@ interface DemoData {
 export interface PracticeInput {
   name: string;
   npi?: string;
+  softwareId?: string;
   status: Status;
   userIds: string[];
 }
@@ -74,6 +75,7 @@ export interface SoftwareInput {
   name: string;
   status: Status;
   columns: SoftwareColumn[];
+  worklistColumns?: WorklistColumn[];
 }
 export type HelpContactInput = Omit<HelpContact, "id">;
 
@@ -398,7 +400,19 @@ export const useDemoStore = create<DemoState>()(
         return software;
       },
       updateSoftware: (id, input) =>
-        set((s) => ({ softwares: s.softwares.map((x) => (x.id === id ? { ...x, name: input.name.trim(), status: input.status, columns: input.columns } : x)) })),
+        set((s) => ({
+          softwares: s.softwares.map((x) =>
+            x.id === id
+              ? {
+                  ...x,
+                  name: input.name.trim(),
+                  status: input.status,
+                  columns: input.columns,
+                  ...(input.worklistColumns ? { worklistColumns: input.worklistColumns } : {}),
+                }
+              : x,
+          ),
+        })),
       deleteSoftware: (id) => set((s) => ({ softwares: s.softwares.filter((x) => x.id !== id) })),
       setWorklistColumns: (columns) => set({ worklistColumns: columns }),
 

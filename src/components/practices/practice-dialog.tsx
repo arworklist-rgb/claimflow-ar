@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { Search } from "lucide-react";
+import { Plus, Search } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
@@ -41,10 +41,16 @@ export function PracticeDialog({ open, onOpenChange, practice }: PracticeDialogP
 function PracticeForm({ practice, onDone }: { practice: Practice | null; onDone: () => void }) {
   const practices = useDemoStore((s) => s.practices);
   const users = useDemoStore((s) => s.users);
+  const softwares = useDemoStore((s) => s.softwares);
+  const addSoftware = useDemoStore((s) => s.addSoftware);
   const addPractice = useDemoStore((s) => s.addPractice);
   const updatePractice = useDemoStore((s) => s.updatePractice);
 
+  const activeSoftwares = useMemo(() => softwares.filter((x) => x.status === "Active"), [softwares]);
   const [name, setName] = useState(practice?.name ?? "");
+  const [softwareId, setSoftwareId] = useState(practice?.softwareId ?? activeSoftwares[0]?.id ?? "");
+  const [addingSoftware, setAddingSoftware] = useState(false);
+  const [newSoftwareName, setNewSoftwareName] = useState("");
   const [npi, setNpi] = useState(practice?.npi ?? "");
   const [status, setStatus] = useState<Status>(practice?.status ?? "Active");
   const [userIds, setUserIds] = useState<Set<string>>(new Set(practice?.userIds ?? []));
@@ -69,7 +75,7 @@ function PracticeForm({ practice, onDone }: { practice: Practice | null; onDone:
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    const input = { name: trimmed, npi: npi.trim(), status, userIds: [...userIds] };
+    const input = { name: trimmed, npi: npi.trim(), softwareId: softwareId || undefined, status, userIds: [...userIds] };
     if (practice) {
       updatePractice(practice.id, input);
       toast.success(`${trimmed} updated`);
@@ -117,6 +123,57 @@ function PracticeForm({ practice, onDone }: { practice: Practice | null; onDone:
             <p id="practice-name-error" role="alert" className="text-sm text-destructive">
               {errors.name}
             </p>
+          )}
+        </div>
+
+        <div className="space-y-2">
+          <div className="flex items-center justify-between gap-2">
+            <Label htmlFor="practice-software">Billing Software</Label>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="h-7 gap-1 px-2 text-xs font-semibold text-primary"
+              onClick={() => setAddingSoftware((v) => !v)}
+            >
+              <Plus className="size-3.5" aria-hidden /> Add billing software
+            </Button>
+          </div>
+          <Select value={softwareId} onValueChange={setSoftwareId}>
+            <SelectTrigger id="practice-software" className="w-full">
+              <SelectValue placeholder="Select billing software" />
+            </SelectTrigger>
+            <SelectContent>
+              {activeSoftwares.map((sw) => (
+                <SelectItem key={sw.id} value={sw.id}>
+                  {sw.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          {addingSoftware && (
+            <div className="flex items-center gap-2 pt-1">
+              <Input
+                placeholder="New software name (e.g. NextGen)"
+                value={newSoftwareName}
+                onChange={(e) => setNewSoftwareName(e.target.value)}
+              />
+              <Button
+                type="button"
+                size="sm"
+                onClick={() => {
+                  const trimmedSw = newSoftwareName.trim();
+                  if (!trimmedSw) return;
+                  const createdSw = addSoftware(trimmedSw, softwareId || activeSoftwares[0]?.id);
+                  setSoftwareId(createdSw.id);
+                  setNewSoftwareName("");
+                  setAddingSoftware(false);
+                  toast.success(`Added billing software "${createdSw.name}"`);
+                }}
+              >
+                Add
+              </Button>
+            </div>
           )}
         </div>
 
