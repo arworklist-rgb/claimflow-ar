@@ -184,8 +184,15 @@ function TopNavInner() {
 
         <Logo />
 
-        {/* Section Dropdowns (compact at xl, full at 1550px+) */}
+        {/* Direct Dashboard link + Section Dropdowns */}
         <nav aria-label="Primary sections" className="ml-1 hidden min-w-0 items-center gap-0.5 xl:flex min-[1550px]:ml-2 min-[1550px]:gap-1">
+          <Link
+            href="/dashboard"
+            prefetch={false}
+            className={cn(navBtn, pathname === "/dashboard" ? navActive : navIdle)}
+          >
+            Dashboard
+          </Link>
           {visibleSections.map((section) => {
             const anyActive = section.items.some((item) => isNavActive(item, pathname, search));
             const isExtra = extraSections.some((e) => e.title === section.title);
@@ -289,6 +296,18 @@ function TopNavInner() {
             <Logo />
           </SheetHeader>
           <nav aria-label="Mobile Role Navigation" className="flex flex-col gap-4 p-3">
+            <Link
+              href="/dashboard"
+              prefetch={false}
+              onClick={() => setMobileOpen(false)}
+              aria-current={pathname === "/dashboard" ? "page" : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium",
+                pathname === "/dashboard" ? "bg-[#1d4ed8] text-white" : "text-nav-foreground/85 hover:bg-white/10 hover:text-white",
+              )}
+            >
+              Dashboard
+            </Link>
             {mobileSections.map((section) => (
               <div key={section.title} className="space-y-1">
                 <div className="px-3 text-[11px] font-semibold tracking-wider text-nav-foreground/50 uppercase">

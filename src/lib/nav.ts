@@ -40,14 +40,8 @@ export interface SidebarSection {
   items: NavItem[];
 }
 
-/** Top Navbar section dropdowns (everything except Settings, which lives in the Profile dropdown). */
+/** Top Navbar section dropdowns (Dashboard is rendered as a direct link; Settings live in the Profile dropdown). */
 export const TOP_NAV_SECTIONS: SidebarSection[] = [
-  {
-    title: "Overview",
-    items: [
-      { href: "/dashboard", label: "Dashboard", icon: Home },
-    ],
-  },
   {
     title: "Claims Operations",
     items: [
