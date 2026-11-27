@@ -135,8 +135,8 @@ function TopNavInner() {
   const [mobileOpen, setMobileOpen] = useState(false);
   const { roleKey, can } = useAuth();
 
-  if (pathname === "/" || pathname === "/login") {
-    if (pathname === "/") return null;
+  if (pathname === "/" || pathname === "/guide" || pathname === "/login") {
+    if (pathname === "/" || pathname === "/guide") return null;
     return (
       <header className="sticky top-0 z-40 border-b border-nav-border bg-nav/95 text-nav-foreground backdrop-blur">
         <div className="flex h-16 items-center justify-between px-4 sm:px-6">

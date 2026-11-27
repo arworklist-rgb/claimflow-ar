@@ -110,7 +110,7 @@ export function LandingPage() {
             <a href="#workflow" className="rounded-full px-4 py-1.5 text-sm font-medium text-[#F4EDE0]/85 transition hover:bg-[#F4EDE0]/10 hover:text-[#F4EDE0]">
               Workflow
             </a>
-            <Link href="/knowledge-center" className="rounded-full px-4 py-1.5 text-sm font-medium text-[#F4EDE0]/85 transition hover:bg-[#F4EDE0]/10 hover:text-[#F4EDE0]">
+            <Link href="/guide" className="rounded-full px-4 py-1.5 text-sm font-medium text-[#F4EDE0]/85 transition hover:bg-[#F4EDE0]/10 hover:text-[#F4EDE0]">
               Knowledge
             </Link>
           </nav>
