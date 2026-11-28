@@ -81,8 +81,13 @@ export function claimFieldText(claim: Claim, key: string): string {
 
 const normHeader = (h: string) => h.toLowerCase().replace(/[^a-z0-9]/g, "");
 
-/** The columns a software's template actually uses (hidden ones are left out). */
-export const shownColumns = (software: Pick<Software, "columns">): SoftwareColumn[] => software.columns.filter((c) => !c.hidden);
+export const MANUAL_DATA_INPUT = "Manual data input";
+export const isManualMapping = (c: Pick<SoftwareColumn, "header">) =>
+  c.header.trim().toLowerCase() === MANUAL_DATA_INPUT.toLowerCase();
+
+/** The columns a software's template actually uses (hidden or manual-input ones are left out). */
+export const shownColumns = (software: Pick<Software, "columns">): SoftwareColumn[] =>
+  software.columns.filter((c) => !c.hidden && !isManualMapping(c));
 
 /** Column names a file may use for a software column, normalized for tolerant matching. */
 export function softwareAliasMap(software: Software): Record<string, string[]> {
@@ -115,12 +120,11 @@ export function validateSoftware(
   if (!name) errors.push("Enter a software name.");
   else if (others.some((o) => o.id !== selfId && o.name.trim().toLowerCase() === name.toLowerCase())) errors.push(`“${name}” already exists.`);
 
-  const known = new Set(allFields(custom).map((f) => f.key));
   const seen = new Map<string, number>();
   software.columns.forEach((c, i) => {
     const row = i + 1;
     if (!c.header.trim()) errors.push(`Column ${row}: enter the column name.`);
-    else {
+    else if (!isManualMapping(c)) {
       for (const spelling of c.hidden ? [] : [c.header, ...c.aliases]) {
         const key = normHeader(spelling);
         if (!key) continue;
@@ -129,7 +133,7 @@ export function validateSoftware(
         else seen.set(key, i);
       }
     }
-    if (!known.has(c.field)) errors.push(`Column ${row}: choose which field it maps to.`);
+    if (!c.field.trim()) errors.push(`Column ${row}: choose which field it maps to.`);
   });
   for (const key of REQUIRED_FIELD_KEYS) {
     if (!shownColumns(software).some((c) => c.field === key)) {

@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { pluralize } from "@/lib/format";
 import { useDemoStore } from "@/lib/store/demo-store";
+import { saveCustomFieldToSupabase } from "@/lib/supabase/templates-sync";
 import { allFields, BUILT_IN_FIELDS, FIELD_TYPE_LABELS } from "@/lib/templates";
 import type { CustomField, FieldType } from "@/lib/types";
 
@@ -40,7 +41,8 @@ export function CustomFieldsTab({ isAdmin }: { isAdmin: boolean }) {
     if (allFields(customFields).some((f) => f.label.toLowerCase() === name.toLowerCase())) {
       return setError(`“${name}” is already a field.`);
     }
-    addCustomField(name, type);
+    const created = addCustomField(name, type);
+    void saveCustomFieldToSupabase(created);
     setLabel("");
     setError(null);
     toast.success(`${name} added. Map it in a template or a worklist column.`);

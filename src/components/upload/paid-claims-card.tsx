@@ -19,7 +19,9 @@ import { buildPaidClaimsSample } from "@/lib/excel/sample";
 import { CLAIM_FILE_RULES } from "@/lib/excel/validate";
 import { pluralize } from "@/lib/format";
 import { uid, useDemoStore } from "@/lib/store/demo-store";
+import { softwareAliasMap } from "@/lib/templates";
 import { useCurrentUser } from "@/lib/store/selectors";
+import type { Software } from "@/lib/types";
 import { ColumnsHint } from "./columns-hint";
 import { FileChip } from "./file-chip";
 import { FileDropzone } from "./file-dropzone";
@@ -37,20 +39,41 @@ const MATCH_BADGES: Record<PaidOutcome, { label: string; tone: string }> = {
   multiple: { label: "Multiple matches", tone: "bg-red-100 text-red-700 dark:bg-red-500/15 dark:text-red-300" },
 };
 
-export function PaidClaimsCard() {
+export function PaidClaimsCard({ software }: { software: Software | undefined }) {
   const router = useRouter();
   const claims = useDemoStore((s) => s.claims);
   const users = useDemoStore((s) => s.users);
   const applyPaidClaims = useDemoStore((s) => s.applyPaidClaims);
   const uploader = useCurrentUser().name;
 
-  const upload = useSpreadsheetUpload(CLAIM_FILE_RULES, PAID_CLAIM_REQUIRED_COLUMNS, PAID_CLAIM_OPTIONAL_COLUMNS);
+  const { paidRequired, paidOptional, paidColumns, paidAliases } = useMemo(() => {
+    const colFor = (field: string, fallback: string) =>
+      software?.columns.find((c) => c.field === field && c.header.trim())?.header.trim() ?? fallback;
+    const patient = colFor("patient", "Patient Name");
+    const dos = colFor("dos", "Service date");
+    const acctNo = colFor("acctNo", "Patient Acct No");
+    const paymentDate = "Payment Date";
+    const transactionBy = colFor("transactionBy", "Transaction By");
+    const paidAmount = colFor("paidAmount", "Paid Amount");
+    const req = [patient, dos];
+    const opt = [acctNo, paymentDate, transactionBy, paidAmount].filter((c) => !req.includes(c));
+    const cols = [...req, ...opt];
+    const baseAliases = software ? softwareAliasMap(software) : {};
+    return {
+      paidRequired: req,
+      paidOptional: opt,
+      paidColumns: cols,
+      paidAliases: baseAliases,
+    };
+  }, [software]);
+
+  const upload = useSpreadsheetUpload(CLAIM_FILE_RULES, paidRequired, paidOptional, undefined, paidAliases);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{ fileName: string; results: PaidRowResult[] } | null>(null);
 
   const missingRequired = upload.parsed?.missing ?? [];
   const blocked = missingRequired.length > 0;
-  const optionalMissing = PAID_CLAIM_OPTIONAL_COLUMNS.filter((c) => upload.parsed && !upload.parsed.columns.includes(c));
+  const optionalMissing = paidOptional.filter((c) => upload.parsed && !upload.parsed.columns.includes(c));
 
   // What each uploaded row would do against the worklist as it is right now.
   const fileRows = useMemo(
@@ -150,10 +173,10 @@ export function PaidClaimsCard() {
             <MissingColumnsNotice
               missing={[...upload.parsed.missing, ...optionalMissing]}
               blocking={blocked}
-              blockingText="Patient Name and Service date are required before this file can be uploaded."
+              blockingText={`${paidRequired.join(" and ")} are required before this file can be uploaded.`}
             />
             <PreviewTable
-              expected={PAID_CLAIM_COLUMNS}
+              expected={paidColumns}
               missing={[...upload.parsed.missing, ...optionalMissing]}
               rows={upload.parsed.rows}
               extra={{
@@ -187,7 +210,11 @@ export function PaidClaimsCard() {
             error={upload.error}
             footer={
               <div className="mt-4 space-y-4">
-                <ColumnsHint required={PAID_CLAIM_REQUIRED_COLUMNS} optional={PAID_CLAIM_OPTIONAL_COLUMNS} />
+                <ColumnsHint
+                  required={paidRequired}
+                  optional={paidOptional}
+                  title={software ? `Columns ${software.name} paid files need` : undefined}
+                />
                 <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-1.5 text-center">
                   <button
                     type="button"

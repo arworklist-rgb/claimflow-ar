@@ -61,19 +61,10 @@ export const TOP_NAV_SECTIONS: SidebarSection[] = [
     ],
   },
   {
-    title: "Directories",
-    items: [
-      { href: "/settings/practices", label: "Practices", icon: Building2, permission: "practices.manage" },
-      { href: "/settings/payers", label: "Payers", icon: ShieldCheck, permission: "claims.read" },
-      { href: "/settings/denial-codes", label: "Denial Codes", icon: Tag, permission: "claims.read" },
-      { href: "/helpdesk", label: "HelpDesk", icon: LifeBuoy, permission: "claims.read" },
-    ],
-  },
-  {
     title: "Resources",
     items: [
       { href: "/knowledge-center", label: "Knowledge Center", icon: BookOpen, permission: "documents.read" },
-      { href: "/settings/upload-templates", label: "Worklist Settings", icon: FileSpreadsheet, permission: "templates.manage" },
+      { href: "/helpdesk", label: "HelpDesk", icon: LifeBuoy, permission: "claims.read" },
     ],
   },
   {
@@ -92,6 +83,10 @@ export const TOP_NAV_SECTIONS: SidebarSection[] = [
 
 /** Settings items rendered inside the top-navbar Profile dropdown. */
 export const PROFILE_SETTINGS_ITEMS: NavItem[] = [
+  { href: "/settings/practices", label: "Practices", icon: Building2, permission: "practices.manage" },
+  { href: "/settings/payers", label: "Payers", icon: ShieldCheck, permission: "claims.read" },
+  { href: "/settings/denial-codes", label: "Denial Codes", icon: Tag, permission: "claims.read" },
+  { href: "/settings/upload-templates", label: "Worklist Settings", icon: FileSpreadsheet, permission: "templates.manage" },
   { href: "/settings/users-roles", label: "Users & Roles", icon: Users, permission: "users.manage" },
   { href: "/settings/claim-status-buckets", label: "Claim Status & Buckets", icon: Layers, permission: "templates.manage" },
   { href: "/settings/notifications", label: "Notifications", icon: Bell },

@@ -1,5 +1,6 @@
 import { create } from "zustand";
 import { createJSONStorage, persist } from "zustand/middleware";
+import { isUuid, syncApi } from "@/lib/supabase/api-sync";
 import { SEED_DENIAL_CODES } from "@/lib/mock-data/denial-codes";
 import { SEED_HELP_CONTACTS } from "@/lib/mock-data/help-contacts";
 import { SEED_KNOWLEDGE_DOCS } from "@/lib/mock-data/knowledge-docs";
@@ -273,15 +274,23 @@ export const useDemoStore = create<DemoState>()(
           code: nextPracticeCode(get().practices),
           name: input.name.trim(),
           npi: input.npi?.trim() || undefined,
+          softwareId: input.softwareId,
           status: input.status,
           userIds: input.userIds,
           createdAt: new Date().toISOString(),
         };
         set((s) => ({ practices: [practice, ...s.practices] }));
+        void syncApi("/api/v1/practices", "POST", {
+          code: practice.code,
+          name: practice.name,
+          npi: practice.npi,
+          software_template_id: practice.softwareId && isUuid(practice.softwareId) ? practice.softwareId : null,
+          status: practice.status,
+        });
         return practice;
       },
 
-      updatePractice: (id, input) =>
+      updatePractice: (id, input) => {
         set((s) => ({
           practices: s.practices.map((p) =>
             p.id === id
@@ -289,25 +298,41 @@ export const useDemoStore = create<DemoState>()(
                   ...p,
                   name: input.name.trim(),
                   npi: input.npi?.trim() || undefined,
+                  softwareId: input.softwareId,
                   status: input.status,
                   userIds: input.userIds,
                 }
               : p,
           ),
-        })),
+        }));
+        if (isUuid(id)) {
+          void syncApi(`/api/v1/practices/${id}`, "PATCH", {
+            name: input.name.trim(),
+            npi: input.npi?.trim() || undefined,
+            software_template_id: input.softwareId && isUuid(input.softwareId) ? input.softwareId : null,
+            status: input.status,
+          });
+        }
+      },
 
-      deletePractice: (id) =>
+      deletePractice: (id) => {
         set((s) => ({
           practices: s.practices.filter((p) => p.id !== id),
           selectedPracticeId: s.selectedPracticeId === id ? ALL_PRACTICES : s.selectedPracticeId,
-        })),
+        }));
+        if (isUuid(id)) {
+          void syncApi(`/api/v1/practices/${id}`, "DELETE");
+        }
+      },
 
-      addDenialCode: (input) =>
+      addDenialCode: (input) => {
         set((s) => ({
           denialCodes: [{ ...input, id: uid("dc") }, ...s.denialCodes],
-        })),
+        }));
+        void syncApi("/api/v1/denial-codes", "POST", input);
+      },
 
-      updateDenialCode: (id, input) =>
+      updateDenialCode: (id, input) => {
         set((s) => {
           const before = s.denialCodes.find((r) => r.id === id);
           const renamed = before && before.code !== input.code;
@@ -321,7 +346,11 @@ export const useDemoStore = create<DemoState>()(
                 )
               : s.claims,
           };
-        }),
+        });
+        if (isUuid(id)) {
+          void syncApi(`/api/v1/denial-codes/${id}`, "PATCH", input);
+        }
+      },
 
       duplicateDenialCode: (id) => {
         const { denialCodes } = get();
@@ -441,10 +470,40 @@ export const useDemoStore = create<DemoState>()(
           };
         }),
 
-      addHelpContact: (input) => set((s) => ({ helpContacts: [{ ...input, id: uid("hc") }, ...s.helpContacts] })),
-      updateHelpContact: (id, input) =>
-        set((s) => ({ helpContacts: s.helpContacts.map((c) => (c.id === id ? { ...input, id } : c)) })),
-      deleteHelpContact: (id) => set((s) => ({ helpContacts: s.helpContacts.filter((c) => c.id !== id) })),
+      addHelpContact: (input) => {
+        set((s) => ({ helpContacts: [{ ...input, id: uid("hc") }, ...s.helpContacts] }));
+        void syncApi("/api/v1/help-contacts", "POST", {
+          name: input.name,
+          category: input.category,
+          practice_id: input.practiceId && isUuid(input.practiceId) ? input.practiceId : null,
+          phones_json: input.phones,
+          email: input.email,
+          website: input.website,
+          hours: input.hours,
+          notes: input.notes,
+        });
+      },
+      updateHelpContact: (id, input) => {
+        set((s) => ({ helpContacts: s.helpContacts.map((c) => (c.id === id ? { ...input, id } : c)) }));
+        if (isUuid(id)) {
+          void syncApi(`/api/v1/help-contacts/${id}`, "PATCH", {
+            name: input.name,
+            category: input.category,
+            practice_id: input.practiceId && isUuid(input.practiceId) ? input.practiceId : null,
+            phones_json: input.phones,
+            email: input.email,
+            website: input.website,
+            hours: input.hours,
+            notes: input.notes,
+          });
+        }
+      },
+      deleteHelpContact: (id) => {
+        set((s) => ({ helpContacts: s.helpContacts.filter((c) => c.id !== id) }));
+        if (isUuid(id)) {
+          void syncApi(`/api/v1/help-contacts/${id}`, "DELETE");
+        }
+      },
 
       addKnowledgeDocs: (docs) => set((s) => ({ knowledgeDocs: [...docs, ...s.knowledgeDocs] })),
       updateKnowledgeDoc: (id, patch) =>
@@ -636,6 +695,20 @@ export const useDemoStore = create<DemoState>()(
                 },
           ),
         }));
+        if (isUuid(id)) {
+          void syncApi(`/api/v1/claims/${id}`, "PATCH", {
+            action: update.action,
+            action_date: update.actionDate,
+            paid_on: closing ? (claim.paidOn ?? update.actionDate) : null,
+          });
+          if (comment) {
+            void syncApi(`/api/v1/claims/${id}/events`, "POST", {
+              action: update.action,
+              action_date: update.actionDate,
+              comment,
+            });
+          }
+        }
         return true;
       },
 

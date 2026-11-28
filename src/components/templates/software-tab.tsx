@@ -1,19 +1,20 @@
 "use client";
 
-import { ArrowDown, ArrowUp, Plus, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowUp, TriangleAlert } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
-import { REQUIRED_FIELD_KEYS, uidShort } from "@/lib/templates";
-import type { CustomField, Software, SoftwareColumn } from "@/lib/types";
-import { FieldSelect } from "./field-select";
+import { BUILT_IN_FIELDS, REQUIRED_FIELD_KEYS } from "@/lib/templates";
+import type { CustomField, Software, SoftwareColumn, WorklistColumn } from "@/lib/types";
 import { TemplateHeaderSelect } from "./template-header-select";
 
 interface SoftwareTabProps {
   software: Software;
   columns: SoftwareColumn[];
+  worklistColumns: WorklistColumn[];
   onChangeColumns: (cols: SoftwareColumn[]) => void;
   customFields: CustomField[];
   errors: string[];
@@ -23,6 +24,7 @@ interface SoftwareTabProps {
 export function SoftwareTab({
   software,
   columns,
+  worklistColumns,
   onChangeColumns,
   customFields,
   errors,
@@ -41,6 +43,24 @@ export function SoftwareTab({
     copy.splice(target, 0, item);
     onChangeColumns(copy);
   };
+
+  // Worklist field options come strictly from Worklist Columns (plus any already-mapped required key).
+  const worklistFieldOptions = (() => {
+    const map = new Map<string, string>();
+    for (const wc of worklistColumns) {
+      if (wc.field && !map.has(wc.field)) map.set(wc.field, wc.label);
+    }
+    for (const col of columns) {
+      if (col.field && !map.has(col.field)) {
+        const builtIn = BUILT_IN_FIELDS.find((f) => f.key === col.field);
+        const custom = customFields.find((f) => f.key === col.field);
+        map.set(col.field, builtIn?.label ?? custom?.label ?? col.field);
+      }
+    }
+    return Array.from(map.entries()).map(([field, label]) => ({ field, label }));
+  })();
+
+  const usedHeaders = columns.map((col) => col.header);
 
   return (
     <Card className="gap-0 py-0">
@@ -71,14 +91,22 @@ export function SoftwareTab({
                   <tr key={c.id} className="border-t align-middle">
                     <td className="px-3 py-2 text-muted-foreground tabular-nums">{i + 1}</td>
                     <td className="px-2 py-2">
-                      <FieldSelect
-                        aria-label={`Column ${i + 1} maps to`}
+                      <Select
                         value={c.field}
-                        onChange={(field) => patch(c.id, { field })}
-                        customFields={customFields}
+                        onValueChange={(field) => patch(c.id, { field })}
                         disabled={readOnly}
-                        className="h-9 w-full bg-card"
-                      />
+                      >
+                        <SelectTrigger aria-label={`Column ${i + 1} maps to`} className="h-9 w-full bg-card">
+                          <SelectValue placeholder="Choose worklist column" />
+                        </SelectTrigger>
+                        <SelectContent className="max-h-72">
+                          {worklistFieldOptions.map((opt) => (
+                            <SelectItem key={opt.field} value={opt.field}>
+                              {opt.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </td>
                     {!readOnly && (
                       <td className="px-2 py-2">
@@ -105,7 +133,7 @@ export function SoftwareTab({
                         value={c.header}
                         onChange={(header) => patch(c.id, { header })}
                         customFields={customFields}
-                        extraOptions={columns.map((col) => col.header)}
+                        usedHeaders={usedHeaders}
                         disabled={readOnly}
                         className="h-9 w-full bg-card"
                       />
@@ -134,26 +162,13 @@ export function SoftwareTab({
               {columns.length === 0 && (
                 <tr>
                   <td colSpan={6} className="px-3 py-8 text-center text-muted-foreground">
-                    No columns yet.
+                    No columns yet. Add columns in the Worklist Columns tab.
                   </td>
                 </tr>
               )}
             </tbody>
           </table>
         </div>
-
-        {!readOnly && (
-          <Button
-            type="button"
-            variant="outline"
-            size="sm"
-            onClick={() =>
-              onChangeColumns([...columns, { id: uidShort("col"), header: "", aliases: [], field: "", required: false }])
-            }
-          >
-            <Plus aria-hidden /> Add column
-          </Button>
-        )}
 
         {errors.length > 0 && (
           <ul role="alert" aria-label="Template problems" className="space-y-1 rounded-lg border border-amber-300/70 bg-amber-50 p-3 text-sm text-amber-900 dark:border-amber-500/30 dark:bg-amber-500/10 dark:text-amber-200">

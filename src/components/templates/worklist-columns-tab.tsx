@@ -9,9 +9,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import { useDemoStore } from "@/lib/store/demo-store";
-import { DEFAULT_WORKLIST_COLUMNS, fieldDef, uidShort } from "@/lib/templates";
+import { saveWorklistColumnsToSupabase } from "@/lib/supabase/templates-sync";
+import { allFields, DEFAULT_WORKLIST_COLUMNS, isManualMapping, uidShort } from "@/lib/templates";
 import type { WorklistColumn } from "@/lib/types";
-import { FieldSelect } from "./field-select";
 
 const MAX_COLUMNS = 20;
 
@@ -37,16 +37,15 @@ export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
 
   const [columns, setColumns] = useState<WorklistColumn[]>(saved);
   const [newLabel, setNewLabel] = useState("");
-  const [newField, setNewField] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const readOnly = !isAdmin;
 
-  // Fields currently mapped in any software's Field Mapping cannot be deleted from Worklist Columns.
+  // Fields actively mapped to a template field (not "Manual data input") cannot be deleted.
   const mappedFields = useMemo(() => {
     const map = new Map<string, string[]>();
     for (const sw of softwares) {
       for (const col of sw.columns) {
-        if (!col.field) continue;
+        if (!col.field || isManualMapping(col)) continue;
         const list = map.get(col.field) ?? [];
         if (!list.includes(sw.name)) list.push(sw.name);
         map.set(col.field, list);
@@ -56,21 +55,35 @@ export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
   }, [softwares]);
 
   const dirty = JSON.stringify(columns) !== JSON.stringify(saved);
-  const patch = (id: string, p: Partial<WorklistColumn>) =>
-    setColumns((list) => list.map((c) => (c.id === id ? { ...c, ...p } : c)));
-  const problems = columns.some((c) => !c.label.trim() || !fieldDef(c.field, customFields));
+  const problems = columns.some((c) => !c.label.trim());
+
+  const patch = (id: string, p: Partial<WorklistColumn>) => {
+    const next = columns.map((c) => (c.id === id ? { ...c, ...p } : c));
+    setColumns(next);
+    if (next.every((c) => c.label.trim())) {
+      setWorklistColumns(next);
+      void saveWorklistColumnsToSupabase(next);
+    }
+  };
 
   function handleAddColumn(e: React.FormEvent) {
     e.preventDefault();
     const label = newLabel.trim();
     if (!label) return setAddError("Enter a column name.");
-    if (!newField) return setAddError("Choose a field to show.");
+    if (columns.some((c) => c.label.trim().toLowerCase() === label.toLowerCase())) {
+      return setAddError(`"${label}" already exists.`);
+    }
     if (columns.length >= MAX_COLUMNS) return setAddError(`Maximum ${MAX_COLUMNS} columns allowed.`);
-    setColumns((list) => [...list, { id: uidShort("wc"), label, field: newField, visible: true }]);
+
+    const matchedField = allFields(customFields).find((f) => f.label.toLowerCase() === label.toLowerCase());
+    const fieldKey = matchedField?.key ?? uidShort("wf");
+    const next = [...columns, { id: uidShort("wc"), label, field: fieldKey, visible: true }];
+    setColumns(next);
+    setWorklistColumns(next);
+    void saveWorklistColumnsToSupabase(next);
     setNewLabel("");
-    setNewField("");
     setAddError(null);
-    toast.success(`Added "${label}" column`);
+    toast.success(`Added "${label}" column — now available in Field Mapping`);
   }
 
   return (
@@ -79,7 +92,7 @@ export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
         <div className="space-y-1 border-b p-5">
           <h2 className="text-sm font-bold">Worklist columns</h2>
           <p className="text-[13px] text-muted-foreground">
-            Name each column and choose the template field it shows. They appear on the Worklist in this order, between Claim No and Denial Code.
+            Name each column shown on the Worklist between Claim No and Denial Code. Every column here is automatically available in Field Mapping.
           </p>
         </div>
 
@@ -96,16 +109,6 @@ export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
                 className="bg-card"
               />
             </div>
-            <div className="w-56 space-y-1.5">
-              <Label>Shows field</Label>
-              <FieldSelect
-                aria-label="New worklist column field"
-                value={newField}
-                onChange={setNewField}
-                customFields={customFields}
-                className="w-full bg-card"
-              />
-            </div>
             <Button type="submit" disabled={columns.length >= MAX_COLUMNS}>
               <Plus aria-hidden /> Add worklist column
             </Button>
@@ -118,12 +121,11 @@ export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
         )}
 
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[40rem] text-sm">
+          <table className="w-full min-w-[32rem] text-sm">
             <thead className="bg-muted/50 text-xs tracking-wide text-muted-foreground uppercase">
               <tr>
                 <th className="w-10 px-4 py-2 text-left font-semibold">#</th>
                 <th className="px-2 py-2 text-left font-semibold">Column name</th>
-                <th className="w-56 px-2 py-2 text-left font-semibold">Shows field</th>
                 {!readOnly && <th className="w-16 px-3 py-2 text-right font-semibold">Delete</th>}
               </tr>
             </thead>
@@ -143,16 +145,6 @@ export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
                         className="h-9 bg-card"
                       />
                     </td>
-                    <td className="px-2 py-2">
-                      <FieldSelect
-                        aria-label={`Worklist column ${i + 1} shows`}
-                        value={c.field}
-                        onChange={(field) => patch(c.id, { field })}
-                        customFields={customFields}
-                        disabled={readOnly}
-                        className="h-9 w-full bg-card"
-                      />
-                    </td>
                     {!readOnly && (
                       <td className="px-3 py-2 text-right">
                         <Tooltip>
@@ -165,7 +157,12 @@ export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
                                 aria-label={`Remove worklist column ${i + 1}`}
                                 disabled={inUse}
                                 className={inUse ? "opacity-40" : "hover:text-destructive"}
-                                onClick={() => setColumns((list) => list.filter((x) => x.id !== c.id))}
+                                onClick={() => {
+                                  const next = columns.filter((x) => x.id !== c.id);
+                                  setColumns(next);
+                                  setWorklistColumns(next);
+                                  void saveWorklistColumnsToSupabase(next);
+                                }}
                               >
                                 <Trash2 />
                               </Button>
@@ -184,7 +181,7 @@ export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
               })}
               {columns.length === 0 && (
                 <tr>
-                  <td colSpan={4} className="px-4 py-8 text-center text-muted-foreground">
+                  <td colSpan={3} className="px-4 py-8 text-center text-muted-foreground">
                     No data columns. Add one above.
                   </td>
                 </tr>
@@ -201,6 +198,8 @@ export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
               size="sm"
               onClick={() => {
                 setColumns(DEFAULT_WORKLIST_COLUMNS);
+                setWorklistColumns(DEFAULT_WORKLIST_COLUMNS);
+                void saveWorklistColumnsToSupabase(DEFAULT_WORKLIST_COLUMNS);
                 toast.info("Reset to default columns");
               }}
             >
@@ -215,6 +214,7 @@ export function WorklistColumnsTab({ isAdmin }: { isAdmin: boolean }) {
                 disabled={!dirty || problems}
                 onClick={() => {
                   setWorklistColumns(columns);
+                  void saveWorklistColumnsToSupabase(columns);
                   toast.success("Worklist columns saved");
                 }}
               >

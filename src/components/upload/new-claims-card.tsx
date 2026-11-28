@@ -3,13 +3,10 @@
 import { useMemo, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { CircleCheck, ClipboardPlus, Settings2, Download, Loader2, Plus, Sparkles, Upload, UserCheck, X } from "lucide-react";
+import { CircleCheck, ClipboardPlus, Settings2, Download, Loader2, Sparkles, Upload, UserCheck, X } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useAuth } from "@/lib/auth/use-auth";
 import { rowsToClaims } from "@/lib/excel/claims-import";
 import { downloadSoftwareTemplate } from "@/lib/excel/software-template";
@@ -18,8 +15,8 @@ import { CLAIM_FILE_RULES } from "@/lib/excel/validate";
 import { pluralize } from "@/lib/format";
 import { uid, useDemoStore } from "@/lib/store/demo-store";
 import { headerTypes, optionalHeaders, requiredHeaders, shownColumns, softwareAliasMap } from "@/lib/templates";
-import { useIsAdmin } from "@/lib/store/selectors";
 import { useCurrentUser } from "@/lib/store/selectors";
+import type { Software } from "@/lib/types";
 import { ColumnsHint } from "./columns-hint";
 import { FileChip } from "./file-chip";
 import { FileDropzone } from "./file-dropzone";
@@ -29,28 +26,20 @@ import { useSpreadsheetUpload } from "./use-spreadsheet-upload";
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-export function NewClaimsCard() {
+export function NewClaimsCard({ software }: { software: Software | undefined }) {
   const router = useRouter();
   const practices = useDemoStore((s) => s.practices);
+  const selectedPracticeId = useDemoStore((s) => s.selectedPracticeId);
   const importNewClaims = useDemoStore((s) => s.importNewClaims);
   const setSelectedPractice = useDemoStore((s) => s.setSelectedPractice);
   const denialCodes = useDemoStore((s) => s.denialCodes);
   const currentUser = useCurrentUser();
-  const { userId: authUserId, fullName: authFullName, authenticated } = useAuth();
+  const { userId: authUserId, fullName: authFullName, authenticated, can } = useAuth();
   const uploader = authenticated ? authFullName : currentUser.name;
   const uploaderId = authenticated ? authUserId : currentUser.id;
-
-  const softwares = useDemoStore((s) => s.softwares);
-  const addSoftware = useDemoStore((s) => s.addSoftware);
-  const customFields = useDemoStore((s) => s.customFields);
-  const { can } = useAuth();
   const isAdmin = can("templates.manage");
-  const activeSoftwares = useMemo(() => softwares.filter((x) => x.status === "Active"), [softwares]);
-  const [softwareChoice, setSoftwareChoice] = useState("");
-  const [addingSoftware, setAddingSoftware] = useState(false);
-  const [newSoftwareName, setNewSoftwareName] = useState("");
-  // The first active software until the user picks one (or the picked one disappears).
-  const software = activeSoftwares.find((x) => x.id === softwareChoice) ?? activeSoftwares[0];
+
+  const customFields = useDemoStore((s) => s.customFields);
 
   // What the chosen software's template looks like: required / optional columns, their other spellings, their types.
   const required = useMemo(() => (software ? requiredHeaders(software) : []), [software]);
@@ -60,8 +49,6 @@ export function NewClaimsCard() {
   const claimNoHeader = (software ? shownColumns(software) : []).find((c) => c.field === "claimId")?.header ?? "Claim No";
 
   const upload = useSpreadsheetUpload(CLAIM_FILE_RULES, required, optional, undefined, aliases);
-  const [practiceId, setPracticeId] = useState("");
-  const [practiceError, setPracticeError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<{
     fileName: string;
@@ -75,6 +62,13 @@ export function NewClaimsCard() {
   } | null>(null);
 
   const activePractices = useMemo(() => practices.filter((p) => p.status === "Active"), [practices]);
+  const targetPractice = useMemo(() => {
+    if (selectedPracticeId !== "all") {
+      return practices.find((p) => p.id === selectedPracticeId);
+    }
+    return activePractices.find((p) => p.softwareId === software?.id) ?? activePractices[0];
+  }, [selectedPracticeId, practices, activePractices, software?.id]);
+
   // Template order; optional columns only appear when the file has them.
   const previewColumns = useMemo(
     () => (software ? shownColumns(software).filter((c) => required.includes(c.header) || upload.parsed?.columns.includes(c.header)).map((c) => c.header) : []),
@@ -91,15 +85,14 @@ export function NewClaimsCard() {
 
   const clear = () => {
     upload.clear();
-    setPracticeId("");
-    setPracticeError(null);
+    setResult(null);
   };
 
   const handleSubmit = async () => {
-    const practice = practices.find((p) => p.id === practiceId);
+    const practice = targetPractice;
     let valid = true;
     if (!practice) {
-      setPracticeError("Select a practice to continue.");
+      toast.error("No active practice found. Select a practice in the top bar.");
       valid = false;
     }
     if (!software) {
@@ -165,15 +158,20 @@ export function NewClaimsCard() {
       description="Upload your new worklist file to add or update claims."
       footer={
         <>
-          <p className="flex basis-full items-start gap-2 text-left text-xs text-muted-foreground">
-            <UserCheck className="mt-px size-3.5 shrink-0 text-primary" aria-hidden />
-            <span>
-              You&apos;ll be set as AR 1 on new claims and AR 2 on updated claims.{" "}
-              <span className="whitespace-nowrap">
-                Uploading as <span className="font-semibold text-foreground/80">{uploader}</span>.
+          <div className="flex basis-full flex-wrap items-center justify-between gap-2 text-left text-xs text-muted-foreground">
+            <p className="flex items-start gap-2">
+              <UserCheck className="mt-px size-3.5 shrink-0 text-primary" aria-hidden />
+              <span>
+                You&apos;ll be set as AR Level 1 on new claims and AR Level 2 on updated claims.{" "}
+                <span className="whitespace-nowrap">
+                  Uploading as <span className="font-semibold text-foreground/80">{uploader}</span>.
+                </span>
               </span>
-            </span>
-          </p>
+            </p>
+            <Link href="/settings/upload-templates" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
+              <Settings2 className="size-3" aria-hidden /> {isAdmin ? "Edit templates in Settings" : "See templates in Settings"}
+            </Link>
+          </div>
           <Button variant="outline" size="lg" onClick={clear} disabled={submitting}>
             Clear
           </Button>
@@ -184,116 +182,6 @@ export function NewClaimsCard() {
         </>
       }
     >
-      <div className="space-y-2">
-        <Label htmlFor="new-claims-software" className="text-sm font-semibold">
-          Billing Software <span className="text-destructive">*</span>
-        </Label>
-        <div className="flex gap-2">
-          <Select
-            value={software?.id ?? ""}
-            onValueChange={(v) => {
-              setSoftwareChoice(v);
-              // The columns this file must have depend on the software, so start over with a fresh file.
-              upload.clear();
-              setResult(null);
-            }}
-            disabled={submitting}
-          >
-            <SelectTrigger id="new-claims-software" className="w-full bg-card">
-              <SelectValue placeholder="Select software" />
-            </SelectTrigger>
-            <SelectContent>
-              {activeSoftwares.map((x) => (
-                <SelectItem key={x.id} value={x.id}>
-                  {x.name}
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          {isAdmin && (
-            <Button type="button" variant="outline" size="icon" title="Add new billing software" onClick={() => setAddingSoftware(true)}>
-              <Plus className="size-4" aria-hidden />
-            </Button>
-          )}
-        </div>
-        <Dialog open={addingSoftware} onOpenChange={setAddingSoftware}>
-          <DialogContent className="sm:max-w-sm">
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                const trimmed = newSoftwareName.trim();
-                if (!trimmed) return;
-                const created = addSoftware(trimmed, software?.id);
-                setSoftwareChoice(created.id);
-                setNewSoftwareName("");
-                setAddingSoftware(false);
-                upload.clear();
-                toast.success(`Added software "${created.name}"`);
-              }}
-              className="space-y-4"
-            >
-              <DialogHeader>
-                <DialogTitle>Add Billing Software</DialogTitle>
-                <DialogDescription>Create a new software template starting from the current layout.</DialogDescription>
-              </DialogHeader>
-              <div className="space-y-2">
-                <Label htmlFor="quick-sw-name">Software Name</Label>
-                <Input id="quick-sw-name" required autoFocus placeholder="e.g. NextGen" value={newSoftwareName} onChange={(e) => setNewSoftwareName(e.target.value)} />
-              </div>
-              <DialogFooter>
-                <Button type="button" variant="outline" onClick={() => setAddingSoftware(false)}>Cancel</Button>
-                <Button type="submit">Add &amp; Select</Button>
-              </DialogFooter>
-            </form>
-          </DialogContent>
-        </Dialog>
-        <p className="text-xs text-muted-foreground">
-          The template columns and their names follow the software.{" "}
-          <Link href="/settings/upload-templates" className="inline-flex items-center gap-1 font-semibold text-primary hover:underline">
-            <Settings2 className="size-3" aria-hidden /> {isAdmin ? "Edit templates in Settings" : "See templates in Settings"}
-          </Link>
-        </p>
-      </div>
-
-      <div className="space-y-2">
-        <Label htmlFor="new-claims-practice" className="text-sm font-semibold">
-          Practice Name <span className="text-destructive">*</span>
-        </Label>
-        <Select
-          value={practiceId}
-          onValueChange={(v) => {
-            setPracticeId(v);
-            setPracticeError(null);
-            const prac = practices.find((p) => p.id === v);
-            if (prac?.softwareId && activeSoftwares.some((sw) => sw.id === prac.softwareId)) {
-              setSoftwareChoice(prac.softwareId);
-            }
-          }}
-          disabled={submitting}
-        >
-          <SelectTrigger
-            id="new-claims-practice"
-            className="w-full bg-card"
-            aria-invalid={!!practiceError}
-            aria-describedby={practiceError ? "new-claims-practice-error" : undefined}
-          >
-            <SelectValue placeholder="Select Practice" />
-          </SelectTrigger>
-          <SelectContent>
-            {activePractices.map((p) => (
-              <SelectItem key={p.id} value={p.id}>
-                {p.name}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-        {practiceError && (
-          <p id="new-claims-practice-error" role="alert" className="text-sm text-destructive">
-            {practiceError}
-          </p>
-        )}
-      </div>
-
       {result && (
         <section
           aria-label="New claims upload result"
@@ -302,8 +190,8 @@ export function NewClaimsCard() {
           <CircleCheck className="mt-0.5 size-5 shrink-0 text-primary" aria-hidden />
           <div className="min-w-0 flex-1">
             <p className="text-sm font-semibold" data-testid="new-result-summary">
-              <span className="tabular-nums">{result.added}</span> new {pluralize(result.added, "claim")} (AR 1: {result.by}) ·{" "}
-              <span className="tabular-nums">{result.updated}</span> updated (AR 2: {result.by})
+              <span className="tabular-nums">{result.added}</span> new {pluralize(result.added, "claim")} (AR Level 1: {result.by}) ·{" "}
+              <span className="tabular-nums">{result.updated}</span> updated (AR Level 2: {result.by})
             </p>
             <p className="mt-0.5 truncate text-xs text-muted-foreground" title={result.fileName}>
               {result.fileName} · {result.practice}
@@ -311,8 +199,8 @@ export function NewClaimsCard() {
             </p>
             {result.updated > 0 && result.ar2Set + result.ar1Set < result.updated && (
               <p className="mt-0.5 text-xs text-muted-foreground">
-                AR 2 changed on {result.ar2Set + result.ar1Set} of {result.updated} updated {pluralize(result.updated, "claim")}; on the
-                others {result.by} was already AR 1 or AR 2.
+                AR Level 2 changed on {result.ar2Set + result.ar1Set} of {result.updated} updated {pluralize(result.updated, "claim")}; on the
+                others {result.by} was already AR Level 1 or AR Level 2.
               </p>
             )}
           </div>

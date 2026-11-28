@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Columns3, FileSpreadsheet, Lock, Plus, Save, Shapes } from "lucide-react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/shared/page-header";
@@ -12,7 +12,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useAuth } from "@/lib/auth/use-auth";
 import { useDemoStore } from "@/lib/store/demo-store";
-import { DEFAULT_WORKLIST_COLUMNS, uidShort, validateSoftware } from "@/lib/templates";
+import { hydrateTemplatesFromSupabase, saveSoftwareToSupabase, saveWorklistColumnsToSupabase } from "@/lib/supabase/templates-sync";
+import { DEFAULT_WORKLIST_COLUMNS, MANUAL_DATA_INPUT, uidShort, validateSoftware } from "@/lib/templates";
 import type { SoftwareColumn, WorklistColumn } from "@/lib/types";
 import { CustomFieldsTab } from "./custom-fields-tab";
 import { SoftwareTab } from "./software-tab";
@@ -39,8 +40,14 @@ function deriveWorklistColumns(
 
 /** Settings > Worklist Settings. Super users (admins) edit it; everyone else can look. */
 export function TemplatesView() {
-  const { can } = useAuth();
+  const { can, authenticated } = useAuth();
   const isAdmin = can("templates.manage");
+
+  useEffect(() => {
+    if (authenticated) {
+      void hydrateTemplatesFromSupabase();
+    }
+  }, [authenticated]);
 
   const softwares = useDemoStore((s) => s.softwares);
   const customFields = useDemoStore((s) => s.customFields);
@@ -60,7 +67,20 @@ export function TemplatesView() {
   const [newSwName, setNewSwName] = useState("");
   const [copyFrom, setCopyFrom] = useState("sw-standard");
 
-  const currentColumns = draftColumns ?? activeSoftware?.columns ?? [];
+  const currentColumns = useMemo(() => {
+    const base = draftColumns ?? activeSoftware?.columns ?? [];
+    const existingFields = new Set(base.map((c) => c.field));
+    const additions: SoftwareColumn[] = globalWorklistColumns
+      .filter((wc) => wc.field && !existingFields.has(wc.field))
+      .map((wc) => ({
+        id: `col-${wc.id}`,
+        field: wc.field,
+        header: MANUAL_DATA_INPUT,
+        aliases: [],
+        required: false,
+      }));
+    return additions.length > 0 ? [...base, ...additions] : base;
+  }, [draftColumns, activeSoftware, globalWorklistColumns]);
   const currentWorklistCols = useMemo(
     () =>
       draftWorklistCols ??
@@ -106,6 +126,11 @@ export function TemplatesView() {
       worklistColumns: currentWorklistCols,
     });
     setWorklistColumns(currentWorklistCols);
+    void saveSoftwareToSupabase({
+      ...activeSoftware,
+      columns: cleanColumns,
+    });
+    void saveWorklistColumnsToSupabase(currentWorklistCols);
     setDraftColumns(null);
     setDraftWorklistCols(null);
     setSoftwareSwitched(false);
@@ -165,35 +190,36 @@ export function TemplatesView() {
         </p>
       )}
 
-      <Tabs defaultValue="software" className="gap-4">
+      <Tabs defaultValue="worklist" className="gap-4">
         <TabsList variant="line" className="h-11 w-full justify-start gap-0 overflow-x-auto border-b p-0 sm:gap-2">
+          <TabsTrigger value="worklist" className={tab}>
+            <Columns3 aria-hidden /> Worklist Columns
+          </TabsTrigger>
+          <TabsTrigger value="fields" className={tab}>
+            <Shapes aria-hidden /> Template Fields
+          </TabsTrigger>
           <TabsTrigger value="software" className={tab}>
             <FileSpreadsheet aria-hidden /> Field Mapping
           </TabsTrigger>
-          <TabsTrigger value="worklist" className={tab}>
-            <Columns3 aria-hidden /> Worklist columns
-          </TabsTrigger>
-          <TabsTrigger value="fields" className={tab}>
-            <Shapes aria-hidden /> Template fields
-          </TabsTrigger>
         </TabsList>
+        <TabsContent value="worklist">
+          <WorklistColumnsTab isAdmin={isAdmin} />
+        </TabsContent>
+        <TabsContent value="fields">
+          <CustomFieldsTab isAdmin={isAdmin} />
+        </TabsContent>
         <TabsContent value="software">
           {activeSoftware && (
             <SoftwareTab
               software={activeSoftware}
               columns={currentColumns}
+              worklistColumns={globalWorklistColumns}
               onChangeColumns={setDraftColumns}
               customFields={customFields}
               errors={errors}
               isAdmin={isAdmin}
             />
           )}
-        </TabsContent>
-        <TabsContent value="worklist">
-          <WorklistColumnsTab isAdmin={isAdmin} />
-        </TabsContent>
-        <TabsContent value="fields">
-          <CustomFieldsTab isAdmin={isAdmin} />
         </TabsContent>
       </Tabs>
 
@@ -206,6 +232,7 @@ export function TemplatesView() {
               if (!trimmed) return;
               const created = addSoftware(trimmed, copyFrom === "none" ? undefined : copyFrom);
               setSelectedId(created.id);
+              void saveSoftwareToSupabase(created);
               setDraftColumns(null);
               setDraftWorklistCols(null);
               setSoftwareSwitched(true);
